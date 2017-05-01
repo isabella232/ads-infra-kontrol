@@ -24,7 +24,7 @@ Please note the two packages can be installed directly from github via *pip* (es
 if you wish to include them in your own images or on your local dev box). For instance:
 
 ```
-$ sudo pip install git+https://github.com/opaugam-unity/kontrol.git
+$ sudo pip install git+https://github.com/UnityTech/ads-infra-kontrol.git
 ```
 
 Once installed you will have two packages: *kontrol* and *automaton*. The image entrypoint
