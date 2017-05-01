@@ -8,9 +8,9 @@ relies on [**Etcd**](https://github.com/coreos/etcd) for synchronization, leader
 and persistence and will allow you to run code whenever a change occurs within the a set
 of monitored pods.
 
-It also offers a simple command-line tool to run a finite state machine that is controlled
-via a local unix socket. This machine can be used to script the lifecycle of whatever
-process is managed by Kontrol.
+It also offers the *Automaton* command-line tool to run a finite state machine that
+is controlled via a local unix socket. This machine can be used to script the lifecycle
+of whatever process is managed by *Kontrol*.
 
 ### Building the image
 
@@ -27,10 +27,10 @@ if you wish to include them in your own images or on your local dev box). For in
 $ sudo pip install git+https://github.com/opaugam-unity/kontrol.git
 ```
 
-The image entrypoint is *supervisord* which is started from the */home/kontrol* directory. By
-default *kontrol* is not started and you have to explicitely add it to the supervisor jobs.
-Anything with extension *conf* found under */home/kontrol* will be included as a supervisor
-configuration file.
+Once installed you will have two packages: *kontrol* and *automaton*. The image entrypoint
+is *supervisord* which is started from the */home/kontrol* directory. By default *Kontrol* is
+not started and you have to explicitely add it to the supervisor jobs. Anything with extension
+*conf* found under */home/kontrol* will be included as a supervisor configuration file.
 
 ### Documentation
 

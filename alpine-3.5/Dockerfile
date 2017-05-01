@@ -10,7 +10,7 @@ RUN apk add --no-cache git openssl socat curl jq g++ make python2 python2-dev ca
 # - move the supervisord configuration file under /etc/supervisor
 #
 COPY resources ./
-RUN pip install git+https://github.com/opaugam-unity/kontrol.git && \
+RUN pip install git+https://github.com/UnityTech/ads-infra-kontrol.git && \
     mkdir -p /etc/supervisor && \
     mv *.conf /etc/supervisor && \
     apk del g++ make && \
