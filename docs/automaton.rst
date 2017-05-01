@@ -22,9 +22,10 @@ request to transition into another state.
 Getting started
 ***************
 
-Write a first simple YAML manifest called *bot.yml* with two states *A* and *B*. *A* can
-switch to *B* and *B* will pause for 5 seconds and write to a local *foo* file. Note
-*B* can transition to itself but not *A*.
+Write a first simple YAML manifest called *bot.yml* with 3 states *A*, *B* and *C*. *A*
+can switch to *B* and *B* will pause for 5 seconds and write to a local *foo* file. Note
+*B* can transition to itself but not *A*. *C* is simply the terminal state the machine
+will transition too upon shutdown.
 
 .. figure:: png/A-B.png
    :align: center
@@ -35,9 +36,10 @@ The YAML manifest will for instance look like:
 .. code-block:: YAML
 
     initial: A
+    terminal: C
     states:
     - tag: A
-      shell: echo A
+      shell: echo starting
       next: 
         - B
     - tag: B
@@ -47,6 +49,9 @@ The YAML manifest will for instance look like:
       next: 
         - A
         - B
+    - tag: C
+      shell: |
+        echo terminating
 
 Each block in the *states* array must contain the state tag, a valid shell snippet and what 
 transitions are allowed via the *next* array. Please note you can use a glob pattern and that
@@ -72,6 +77,7 @@ Now let's trip it to the B state. After 5 seconds you should be able to see that
 .. code-block:: shell
 
     $echo GOTO B | socat - /tmp/sock
+    OK
     $ls -s foo
     0 foo
 
@@ -82,6 +88,7 @@ script as the **$INPUT** environment variable. For instance:
 .. code-block:: shell
 
     $echo GOTO B hello | socat - /tmp/sock
+    OK
     $cat foo
     hello
 

@@ -125,6 +125,19 @@ class Actor(FSM):
             # - we'll dequeue it upon the next spin
             #
             self.fifo.append(msg)
+
+        elif req == 'state':
+
+            #
+            # - request from GET /state
+            # - simply read the state from etcd and return it
+            #
+            try:
+                return self.client.read('/kontrol/%s/state' % self.cfg['labels']['app']).value
+
+            except EtcdKeyNotFound:
+                pass
+       
         else:
             super(Actor, self).specialized(msg)
         

@@ -46,6 +46,20 @@ def _ping():
     except Exception:
         return '', 500
 
+@http.route('/state', methods=['GET'])
+def _state():
+
+    #
+    # - GET /state (e.g retrieves the cluster state)
+    # - simply ask the callback actor (this will only work in master mode)
+    #
+    try:
+        logger.debug('GET /state')      
+        return kontrol.actors['callback'].ask({'request': 'state'}), 200
+
+    except Exception:
+        return '', 500
+
 
 @http.route('/script', methods=['PUT'])
 def _script():
@@ -53,6 +67,8 @@ def _script():
     #
     # - PUT /script (e.g script evaluation request from the controller)
     # - post it to the script actor (this will only work in slave mode)
+    # - we block on a latch that is released at some point by the
+    #   the actor
     #
     try:
         js = request.get_json(silent=True, force=True)

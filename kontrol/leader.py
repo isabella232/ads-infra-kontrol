@@ -150,4 +150,3 @@ class Actor(FSM):
                 logger.warning('%s: $KONTROL_CALLBACK is not set (user error ?)' % self.path)
                
         return 'watch', data, 1.0
-
