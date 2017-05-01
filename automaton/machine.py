@@ -1,11 +1,14 @@
 import fnmatch
 import json
 import logging
+import os
+import signal
 import time
 
 from collections import deque
 from kontrol.fsm import Aborted, FSM, diagnostic
 from os.path import abspath
+from os import getpgid, killpg
 from subprocess import Popen, PIPE, STDOUT
 
 
@@ -50,13 +53,14 @@ class Actor(FSM):
 
     def initial(self, data):
         
-        if self.terminate:
+        if self.terminate and not self.fifo:
             raise Aborted('resetting')
 
         while self.fifo:
 
             #
             # - peek at the next transition in our FIFO
+            # - always add the terminal state as a valid transition
             # - make sure it is valid
             # - proceed with the first one matching the pattern
             #
@@ -65,6 +69,7 @@ class Actor(FSM):
 
                 assert msg.state in self.states, 'unknown state "%s"' % msg.state
                 allowed = self.cur['next'] if 'next' in self.cur else []
+                allowed.append(self.cfg['terminal'])
                 for pattern in allowed:
                     if fnmatch.fnmatch(msg.state, pattern):
                 
@@ -94,6 +99,7 @@ class Actor(FSM):
                         bufsize=0,
                         shell=True,
                         env=env,
+                        preexec_fn=os.setsid,
                         stderr=STDOUT,
                         stdout=PIPE)
                         logger.debug('%s : invoking script (pid %s)' % (self.path, data.pid.pid))
@@ -110,6 +116,7 @@ class Actor(FSM):
                 logger.warning('%s : %s -> %s is not allowed, skipping' % (self.path, self.cur['tag'], msg.state))
 
             except Exception as failure:
+                
                 logger.warning('%s : %s' % (self.path, failure))
 
             #
@@ -128,24 +135,33 @@ class Actor(FSM):
         #
         # - check if the subprocess is done or not
         #
+        now = time.time()
         complete = data.pid.poll() is not None
 
         #
         # - the process either completed or we have buffered state transitions
         #   in our FIFO
-        # - if transitions are buffered forcelly terminate the running script
-        # - display the process standard outputs
         # - pop the FIFO and cycle back to the initial state
+        # - if transitions are buffered forcelly terminate the running script
+        # - make sure to add a little damper otherwise any shell script that tries to
+        #   socat to the machine would kill itself
+        # - display the process standard outputs
         #
-        if complete or len(self.fifo) > 1:
-            if not complete:
-                logger.debug('%s : killing pid %s (%d transitions pending)' % (self.path, data.pid.pid, len(self.fifo) - 1))
-                data.pid.kill()
+        if not complete and len(self.fifo) > 1 and (now - self.fifo[1].tick) > 1.0:
+            logger.debug('%s : killing pid %s (fifo -> #%d items)' % (self.path, data.pid.pid, len(self.fifo)))
 
-            lapse = time.time() - data.tick
-            code = data.pid.returncode if complete else '_'
+            #
+            # - use killpg to kill the whole sub-progress group
+            # - simply using the popen kill() method won't work
+            #
+            killpg(getpgid(data.pid.pid), signal.SIGTERM)
+            complete = True
+
+        if complete:
+            lapse = now - data.tick
+            code = data.pid.returncode
             stdout = [line.rstrip('\n') for line in iter(data.pid.stdout.readline, b'')]
-            logger.debug('%s : script took %2.1f s (pid %s, exit %s)' % (self.path, lapse, data.pid.pid, code))
+            logger.debug('%s : script took %2.1f s (pid %s, exit %s)' % (self.path, lapse, data.pid.pid, code if code is not None else '_'))
             if stdout:
                 logger.debug('%s : stderr (pid %s) -> \n  . %s' % (self.path, data.pid.pid, '\n  . '.join(stdout)))
 
@@ -182,6 +198,7 @@ class Actor(FSM):
                 msg.state = tokens[1]
                 msg.extra = ' '.join(tokens[2:]) if len(tokens) > 2 else ''
                 msg.wait = tokens[0] == 'WAIT'
+                msg.tick = time.time()
                 self.fifo.append(msg)
 
         else:

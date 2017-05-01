@@ -25,6 +25,8 @@ type: object
 properties:
     initial:
         type: string
+    terminal:
+        type: string
     states:
         type: array
         items:
@@ -121,6 +123,9 @@ def go():
 
         finally:
             if actor:
+                msg = MSG({'request': 'cmd', 'raw': 'GOTO %s' % cfg['terminal']})
+                msg.cnx = None
+                actor.tell(msg)
                 shutdown(actor)
 
     except KeyboardInterrupt:
