@@ -1,0 +1,273 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Kontrol &#8212; kontrol 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/flasky.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Automaton" href="automaton.html" />
+    <link rel="prev" title="Overview" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+  
+  
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="automaton.html" title="Automaton"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Overview"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">kontrol 1.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="kontrol">
+<h1>Kontrol<a class="headerlink" href="#kontrol" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="overview">
+<h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
+<p><em>Kontrol</em> is a small <a class="reference external" href="https://www.python.org/">Python</a> package which implements a REST/HTTP endpoint plus a set of
+<a class="reference external" href="https://github.com/jodal/pykka/">Pykka</a> state-machines. It is used to report periodic keepalive messages from a set of
+pods and aggregate them in <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a>.</p>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/overview.png"><img alt="_images/overview.png" src="_images/overview.png" style="width: 90%;" /></a>
+</div>
+<p>The goal is to detect any change within this set of pods and react to it via a user-defined
+callback. This callback is provided the ordered list of all participating pods with details
+such as their IPv4 address and so on.</p>
+<p>Kontrol is designed to address a few common use cases: passive monitoring and alerting,
+distributed configuration or self-healing. You can use it in various topologies: separate
+master &amp; slave tiers, mixed mode (e.g self-managing pod ensemble) or even setup a chain of
+masters (e.g monitoring the monitor).</p>
+</div>
+<div class="section" id="system-design">
+<h3>System design<a class="headerlink" href="#system-design" title="Permalink to this headline">¶</a></h3>
+<p>Kontrol operates in either slave, master or mixed mode. A <strong>slave</strong> will periodically emit a
+keepalive payload to its <strong>master</strong> tier. This payload include information about the pod itself
+plus some optional user-data. The masters will receive those keepalives and maintain a MD5 digest
+reflecting the overall ensemble state. Any time this digest changes for whatever reason a
+user defined callback is executed. The masters are HA and will fail-over in case of problem. They
+are typically run via a <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> deployment fronted by a service. Any master can receive
+keepalives but only one at any given is in charge of tracking the digest and executing the callback.</p>
+<p>All the locking, leader election and persistence is done 100% in <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a>.</p>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/schematic.png"><img alt="_images/schematic.png" src="_images/schematic.png" style="width: 90%;" /></a>
+</div>
+<p>Please note you can run in both <strong>master</strong>/<strong>slave</strong> meaning the same pod deployment can run its
+own monitoring logic.</p>
+</div>
+<div class="section" id="pod-ordering">
+<h3>Pod ordering<a class="headerlink" href="#pod-ordering" title="Permalink to this headline">¶</a></h3>
+<p>It is crucial to keep consistent ordering for the pods that are monitored. Kontrol does it by first
+identifying pods using their base 62 shortened <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> IPv4 address. A monotonic integer sequence
+is also assigned to each pod the first time they emit a keepalive. This sequence counter is then
+persisted as long as the pod is alive.</p>
+</div>
+<div class="section" id="action-reaction">
+<h3>Action/Reaction<a class="headerlink" href="#action-reaction" title="Permalink to this headline">¶</a></h3>
+<p>Kontrol also allows slaves to execute arbitrary commands on behalf of the master. This mechanism
+is the primary way to actively control your pod ensemble. Those commands are run by the <em>kontrol</em>
+user and anything written to the standard output is sent back to the master.</p>
+<p>It is also important to note that the callback has the ability to persist its own user-data across
+multiple invokations. This is critical to maintain consistent runtime information describing how
+the overall system is evolving. A typical use-case would be to assign and track custom ids or to
+be able to re-assign existing data to new pods.</p>
+</div>
+<div class="section" id="telemetry">
+<h3>Telemetry<a class="headerlink" href="#telemetry" title="Permalink to this headline">¶</a></h3>
+<p>You also have the option to relay arbitrary json data in the keepalive requests that are emitted
+periodically. This is done by directing Kontrol to use a json file on disk. Any update to this file
+will be reflected in the overall pod snapshot and trigger a callback.</p>
+</div>
+</div>
+<div class="section" id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="environment-variables">
+<h3>Environment variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline">¶</a></h3>
+<p>Kontrol is configured via a few environments variables. Those are mostly defaulted based on what
+the <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> pod provides. A few can be specified in the manifest.</p>
+<ul class="simple">
+<li><strong>$KONTROL_HOST</strong>: IPv4 address for the kube proxy (defaulted).</li>
+<li><strong>$KONTROL_IP</strong>: IPv4 address for the pod (defaulted).</li>
+<li><strong>$KONTROL_ETCD</strong>: IPv4 address for a <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> proxy (defaulted).</li>
+<li><strong>$KONTROL_LABELS</strong>: pod&#8217;s label dictionary (defaulted).</li>
+<li><strong>$KONTROL_MODE</strong>: pod operating mode, see below (defaulted).</li>
+<li><strong>$KONTROL_DAMPER</strong>: reactivity damper (defaulted).</li>
+<li><strong>$KONTROL_TTL</strong>: pod keepalive cutoff (defaulted).</li>
+<li><strong>$KONTROL_CALLBACK</strong>: executable to run upon callback (optional).</li>
+<li><strong>$KONTROL_PAYLOAD</strong>: local json file on disk to add to the keepalives (optional).</li>
+</ul>
+<p>The labels are picked for you from the <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> pod metadata. However you <strong>must</strong> at least
+define the <strong>app* and **role</strong> labels as they are used by Kontrol.</p>
+</div>
+<div class="section" id="operating-mode">
+<h3>Operating mode<a class="headerlink" href="#operating-mode" title="Permalink to this headline">¶</a></h3>
+<p>Kontrol can run in different modes. The <strong>$KONTROL_MODE</strong> variable is a comma separated list of tokens
+indicating what underlying actors to run. Valid token values include <em>slave</em>, <em>master</em>, <em>debug</em> and <em>verbose</em>.
+The default value is set to <em>slave</em> meaning that Kontrol will just attempt to report keepalive messages.
+Specifying <em>master</em> will enable receiving keepalives and tracking the MD5 digest. Please note you can
+specify both <em>master</em> and <em>slave</em> at the same time.</p>
+<p>The <em>verbose</em> token will turn debug logs on. Those are piped to the container standard output.</p>
+<p>Adding <em>debug</em> will allow to run in local debugging mode. In that case <em>slave</em> and <em>master</em> will be added
+as well and <strong>$KONTROL_HOST</strong> used for both the pod IPv4 and <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a>. In other words you can run a self contained
+master/slave instance of your Kontrol image by doing:</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span>$ sudo ifconfig lo0 <span class="nb">alias</span> <span class="m">172</span>.16.123.1
+$ docker run -e <span class="nv">KONTROL_MODE</span><span class="o">=</span>debug -e <span class="nv">KONTROL_HOST</span><span class="o">=</span><span class="m">172</span>.16.123.1 -p <span class="m">8000</span>:8000 &lt;image&gt;
+</pre></div>
+</div>
+<p>Please note this assumes you have a local <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> running on your local host and listening on all interfaces.</p>
+</div>
+<div class="section" id="etcd">
+<h3>Etcd<a class="headerlink" href="#etcd" title="Permalink to this headline">¶</a></h3>
+<p>The <strong>$KONTROL_ETCD</strong> variable is defaulted to the kube proxy IPv4. This assumes the <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> proxy running in there
+is listening on all interfaces. If you want to use a dedicated <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> proxy you can override this variable.</p>
+</div>
+<div class="section" id="pod-payload">
+<h3>Pod payload<a class="headerlink" href="#pod-payload" title="Permalink to this headline">¶</a></h3>
+<p>Slaves have the ability to include arbirary json payload in their keepalives. Simply set the <strong>$KONTROL_PAYLOAD</strong>
+variable to point to a file on disk containing valid serialized JSON. This content will be parsed and included
+in the keepalive request.</p>
+<p>If the variable is not set or if the file does not exist or contains invalid JSON this process will be skipped.</p>
+</div>
+<div class="section" id="callback">
+<h3>Callback<a class="headerlink" href="#callback" title="Permalink to this headline">¶</a></h3>
+<p>Kontrol will periodically run a user-defined callback whenever a change is detected. This callback is an
+arbitrary command you can specify via the <strong>$KONTROL_CALLBACK</strong> variable. This subprocess is tracked and its
+standard error and output piped back. It does not have to be a shell or <a class="reference external" href="https://www.python.org/">Python</a> script or anything
+specific for that matter. The only requirement is to have it set to a valid command.</p>
+<p>The callback sub-process will be passed 3 environment variables:</p>
+<ul class="simple">
+<li><strong>$HASH</strong>: latest MD5 digest.</li>
+<li><strong>$PODS</strong>: ordered list of pods as a JSON array.</li>
+<li><strong>$STATE</strong>: optional user-data.</li>
+</ul>
+<p>The <strong>$PODS</strong> variable contains a snapshot of the current pod ensemble. It is passed as a serialized JSON
+array whose entries are consistently ordered. Anything written on the standard output is assumed to be
+valid JSON syntax, will be persisted in <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> and passed back upon the next invokation as the <strong>$STATE</strong>
+variable.</p>
+<p>Each entry in the <strong>$POD</strong> array is a small dict containing a few fields. For instance:</p>
+<div class="highlight-json"><div class="highlight"><pre><span></span>{
+    &quot;ip&quot;: 172.16.123.1
+    &quot;seq&quot;: 3
+    &quot;uuid&quot;: &quot;redis-39mysN&quot;
+    &quot;role&quot;: &quot;redis&quot;
+    &quot;payload&quot;: {&quot;some&quot;: &quot;stuff&quot;}
+}
+</pre></div>
+</div>
+<p>The UUID and sequence counter are guaranteed to be unique amongst all the monitored pods. The payload field is
+optional and set if the slaves have <strong>$KONTROL_PAYLOAD</strong> set.</p>
+<p>The following <a class="reference external" href="https://www.python.org/">Python</a> callback script will for instance display the UUID and IPv4 address assigned to each pod:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/python</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+
+    <span class="k">for</span> <span class="n">pod</span> <span class="ow">in</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;PODS&#39;</span><span class="p">]):</span>
+        <span class="k">print</span> <span class="o">&gt;&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="s1">&#39; - #</span><span class="si">%d</span><span class="s1"> (</span><span class="si">%s</span><span class="s1">) -&gt; </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pod</span><span class="p">[</span><span class="s1">&#39;seq&#39;</span><span class="p">],</span> <span class="n">pod</span><span class="p">[</span><span class="s1">&#39;uuid&#39;</span><span class="p">],</span> <span class="n">pod</span><span class="p">[</span><span class="s1">&#39;ip&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/unity-logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Kontrol</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#system-design">System design</a></li>
+<li><a class="reference internal" href="#pod-ordering">Pod ordering</a></li>
+<li><a class="reference internal" href="#action-reaction">Action/Reaction</a></li>
+<li><a class="reference internal" href="#telemetry">Telemetry</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#configuration">Configuration</a><ul>
+<li><a class="reference internal" href="#environment-variables">Environment variables</a></li>
+<li><a class="reference internal" href="#operating-mode">Operating mode</a></li>
+<li><a class="reference internal" href="#etcd">Etcd</a></li>
+<li><a class="reference internal" href="#pod-payload">Pod payload</a></li>
+<li><a class="reference internal" href="#callback">Callback</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Overview</a></li>
+      <li>Next: <a href="automaton.html" title="next chapter">Automaton</a></li>
+  </ul></li>
+</ul>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer">
+    &copy; Copyright 2017, Unity Technologies.
+    Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+  </div>
+  
+  </body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Overview &#8212; kontrol 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/flasky.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Kontrol" href="kontrol.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+  
+  
+  <div class=indexwrapper>
+  
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="kontrol.html" title="Kontrol"
+             accesskey="N">next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">kontrol 1.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="kontrol-automaton">
+<h2>Kontrol &amp; Automaton<a class="headerlink" href="#kontrol-automaton" title="Permalink to this headline">¶</a></h2>
+<p><em>Kontrol</em> is a distributed control loop managing <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> pods. You can include its
+<a class="reference external" href="https://www.docker.com/">Docker</a> container in your pods to quickly implement monitoring, distributed configuration
+and more.</p>
+<p>It comes with <em>Automaton</em> which is a finite-state machine running shell scripts and which
+you can transition by writing to a local unix socket. This is a convenient way to script
+what the lifecycle of your software should be.</p>
+<p>You can use both <em>Kontrol</em> and <em>Automaton</em> in tandem to implement strong distributed system
+with consistent behavior.</p>
+</div>
+<div class="section" id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="kontrol.html">Kontrol</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="kontrol.html#introduction">Introduction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#system-design">System design</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#pod-ordering">Pod ordering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#action-reaction">Action/Reaction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#telemetry">Telemetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="kontrol.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#environment-variables">Environment variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#operating-mode">Operating mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#etcd">Etcd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#pod-payload">Pod payload</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kontrol.html#callback">Callback</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="automaton.html">Automaton</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="automaton.html#introduction">Introduction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="automaton.html#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="automaton.html#getting-started">Getting started</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="use-cases.html">Use Cases</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="use-cases.html#introduction">Introduction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="use-cases.html#overview">Overview</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="#">
+              <img class="logo" src="_static/unity-logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Overview</a><ul>
+<li><a class="reference internal" href="#kontrol-automaton">Kontrol &amp; Automaton</a></li>
+<li><a class="reference internal" href="#contents">Contents</a></li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+</li>
+</ul>
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="kontrol.html" title="next chapter">Kontrol</a></li>
+  </ul></li>
+</ul>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer">
+    &copy; Copyright 2017, Unity Technologies.
+    Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+  </div>
+  
+  </div>
+  
+  </body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Automaton &#8212; kontrol 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/flasky.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Use Cases" href="use-cases.html" />
+    <link rel="prev" title="Kontrol" href="kontrol.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+  
+  
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="use-cases.html" title="Use Cases"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="kontrol.html" title="Kontrol"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">kontrol 1.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="automaton">
+<h1>Automaton<a class="headerlink" href="#automaton" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="overview">
+<h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
+<p><em>Automaton</em> is a small <a class="reference external" href="https://www.python.org/">Python</a> tool that implements a finite state machine running
+shell scripts. It is easy configured via a YAML manifest and will implement whatever
+lifecycle you wish to enforce. The tool will install itself under <em>/usr/local/bin</em>.</p>
+<p><em>Automaton</em> will flow from state to state and run a user-defined script at each transition.
+When starting <em>Automaton</em> will setup a unix socket and listen for commands. Commands
+include <em>STATE</em> which will return the current state and <em>GOTO</em> which trips the machine and
+request to transition into another state.</p>
+</div>
+<div class="section" id="getting-started">
+<h3>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h3>
+<p>Write a first simple YAML manifest called <em>bot.yml</em> with two states <em>A</em> and <em>B</em>. <em>A</em> can
+switch to <em>B</em> and <em>B</em> will pause for 5 seconds and write to a local <em>foo</em> file. Note
+<em>B</em> can transition to itself but not <em>A</em>.</p>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/A-B.png"><img alt="_images/A-B.png" src="_images/A-B.png" style="width: 75%;" /></a>
+</div>
+<p>The YAML manifest will for instance look like:</p>
+<div class="highlight-YAML"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">initial</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">A</span>
+<span class="l l-Scalar l-Scalar-Plain">states</span><span class="p p-Indicator">:</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">tag</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">A</span>
+  <span class="l l-Scalar l-Scalar-Plain">shell</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">echo A</span>
+  <span class="l l-Scalar l-Scalar-Plain">next</span><span class="p p-Indicator">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">B</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">tag</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">B</span>
+  <span class="l l-Scalar l-Scalar-Plain">shell</span><span class="p p-Indicator">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">sleep 5</span>
+    <span class="no">echo $INPUT &gt; foo</span>
+  <span class="l l-Scalar l-Scalar-Plain">next</span><span class="p p-Indicator">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">A</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">B</span>
+</pre></div>
+</div>
+<p>Each block in the <em>states</em> array must contain the state tag, a valid shell snippet and what
+transitions are allowed via the <em>next</em> array. Please note you can use a glob pattern and that
+not specifying anything means the state is final.</p>
+<p>Simply run <em>Automaton</em> on the command line and specify our YAML manifest and the name of
+the socket to create:</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span>$ automaton bot.yml -d -s /tmp/sock
+</pre></div>
+</div>
+<p>The machine will start and automatically switch to its initial state. You can test it is now
+in the <em>A</em> state by using socat to write to the socket:</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span>$ <span class="nb">echo</span> STATE <span class="p">|</span> socat - /tmp/sock
+A
+</pre></div>
+</div>
+<p>Now let&#8217;s trip it to the B state. After 5 seconds you should be able to see that <em>foo</em> file.</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span><span class="nv">$echo</span> GOTO B <span class="p">|</span> socat - /tmp/sock
+<span class="nv">$ls</span> -s foo
+<span class="m">0</span> foo
+</pre></div>
+</div>
+<p>Since <em>B</em> can transition to itself let&#8217;s trip again but this time we&#8217;ll specify some input
+payload. What&#8217;s echoed to the socat after the state will be passed down verbatim to the shell
+script as the <strong>$INPUT</strong> environment variable. For instance:</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span><span class="nv">$echo</span> GOTO B hello <span class="p">|</span> socat - /tmp/sock
+<span class="nv">$cat</span> foo
+hello
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/unity-logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Automaton</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#getting-started">Getting started</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="kontrol.html" title="previous chapter">Kontrol</a></li>
+      <li>Next: <a href="use-cases.html" title="next chapter">Use Cases</a></li>
+  </ul></li>
+</ul>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer">
+    &copy; Copyright 2017, Unity Technologies.
+    Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+  </div>
+  
+  </body>
+</html>
