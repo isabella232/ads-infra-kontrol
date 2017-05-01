@@ -35,8 +35,7 @@ class Actor(FSM):
         self.cfg = cfg
 
         #
-        # - set the current state to 'idle' and let it transition
-        #   to anything
+        # - set the current state to 'idle' and let it transition to anything
         #
         self.cur = {'tag': 'idle', 'shell': '', 'next': ['*']}
         self.fifo = deque()
@@ -163,7 +162,7 @@ class Actor(FSM):
             stdout = [line.rstrip('\n') for line in iter(data.pid.stdout.readline, b'')]
             logger.debug('%s : script took %2.1f s (pid %s, exit %s)' % (self.path, lapse, data.pid.pid, code if code is not None else '_'))
             if stdout:
-                logger.debug('%s : stderr (pid %s) -> \n  . %s' % (self.path, data.pid.pid, '\n  . '.join(stdout)))
+                logger.debug('%s : pid %s -> \n  . %s' % (self.path, data.pid.pid, '\n  . '.join(stdout)))
 
             #
             # - if blocking send back the 'OK' ack
