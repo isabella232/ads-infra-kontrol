@@ -65,21 +65,20 @@
 <div class="section" id="overview">
 <h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
 <p><em>Automaton</em> is a small <a class="reference external" href="https://www.python.org/">Python</a> tool that implements a finite state machine running
-shell scripts. It is easy configured via a YAML manifest and will implement whatever
-lifecycle you wish to enforce. The tool will install itself under <em>/usr/local/bin</em>.</p>
+shell scripts. It is easily configured via a YAML manifest and will implement whatever
+lifecycle you wish to enforce. The tool will install itself under <em>/usr/local/bin</em> or
+<em>/usr/bin</em> depending on the environment.</p>
 <p><em>Automaton</em> will flow from state to state and run a user-defined script at each transition.
-When starting <em>Automaton</em> will setup a unix socket and listen for commands. Commands
-include <em>STATE</em> which will return the current state and <em>GOTO</em> which trips the machine and
-request to transition into another state.</p>
-<p>The machine will start in the prescribed state and always transition to its terminal state
-before shutting down (e.g convenient to implement graceful shutdown procedures).</p>
+When starting <em>Automaton</em> will setup a unix socket and listen for commands. The machine will
+start in the prescribed state and always transition to its terminal state before shutting down
+(which is convenient to implement graceful shutdown procedures).</p>
 </div>
 <div class="section" id="getting-started">
 <h3>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h3>
 <p>Write a first simple YAML manifest called <em>bot.yml</em> with 3 states <em>A</em>, <em>B</em> and <em>C</em>. <em>A</em>
 can switch to <em>B</em> and <em>B</em> will pause for 5 seconds and write to a local <em>foo</em> file. Note
-<em>B</em> can transition to itself but not <em>A</em>. <em>C</em> is simply the terminal state the machine
-will transition too upon shutdown.</p>
+<em>B</em> can transition to itself but not <em>A</em>. <em>C</em> is the terminal state the machine will
+transition to upon shutdown.</p>
 <div class="figure align-center">
 <a class="reference internal image-reference" href="_images/A-B.png"><img alt="_images/A-B.png" src="_images/A-B.png" style="width: 75%;" /></a>
 </div>
@@ -135,13 +134,15 @@ hello
 </div>
 </div>
 </div>
-<div class="section" id="user-guide">
-<h2>User guide<a class="headerlink" href="#user-guide" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="states">
+<h2>States<a class="headerlink" href="#states" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="transitioning">
 <h3>Transitioning<a class="headerlink" href="#transitioning" title="Permalink to this headline">¶</a></h3>
 <p>You can transition to a target state either asynchronously using <em>GOTO</em> or blocking using
 <em>WAIT</em>. Both commands will send an acknowledgement back: either <strong>OK</strong> if the transition was
-successful or <strong>KO</strong> if the target state is invalid.</p>
+successful or <strong>KO</strong> if the target state is invalid. Please be aware that depending on the
+script a <em>WAIT</em> command might take some time: be sure to <em>socat</em> with a timeout in that
+case.</p>
 <p>You can pass arbitrary payload as well after the state. This payload will be passed down
 during the transition to the shell script via the <strong>$INPUT</strong> variable. This variable is free-form
 and can be wathever. For instance:</p>
@@ -201,7 +202,7 @@ mechanism to perform some cleanup tasks as an example.</p>
 <li><a class="reference internal" href="#getting-started">Getting started</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#user-guide">User guide</a><ul>
+<li><a class="reference internal" href="#states">States</a><ul>
 <li><a class="reference internal" href="#transitioning">Transitioning</a></li>
 <li><a class="reference internal" href="#initial-terminal-states">Initial &amp; terminal states</a></li>
 </ul>

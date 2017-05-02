@@ -10,16 +10,14 @@ Overview
 ********
 
 *Automaton* is a small Python_ tool that implements a finite state machine running
-shell scripts. It is easy configured via a YAML manifest and will implement whatever
-lifecycle you wish to enforce. The tool will install itself under */usr/local/bin*.
+shell scripts. It is easily configured via a YAML manifest and will implement whatever
+lifecycle you wish to enforce. The tool will install itself under */usr/local/bin* or
+*/usr/bin* depending on the environment.
 
 *Automaton* will flow from state to state and run a user-defined script at each transition.
-When starting *Automaton* will setup a unix socket and listen for commands. Commands
-include *STATE* which will return the current state and *GOTO* which trips the machine and
-request to transition into another state.
-
-The machine will start in the prescribed state and always transition to its terminal state
-before shutting down (e.g convenient to implement graceful shutdown procedures).
+When starting *Automaton* will setup a unix socket and listen for commands. The machine will
+start in the prescribed state and always transition to its terminal state before shutting down
+(which is convenient to implement graceful shutdown procedures).
 
 
 Getting started
@@ -27,8 +25,8 @@ Getting started
 
 Write a first simple YAML manifest called *bot.yml* with 3 states *A*, *B* and *C*. *A*
 can switch to *B* and *B* will pause for 5 seconds and write to a local *foo* file. Note
-*B* can transition to itself but not *A*. *C* is simply the terminal state the machine
-will transition too upon shutdown.
+*B* can transition to itself but not *A*. *C* is the terminal state the machine will
+transition to upon shutdown.
 
 .. figure:: png/A-B.png
    :align: center
@@ -96,8 +94,9 @@ script as the **$INPUT** environment variable. For instance:
     $cat foo
     hello
 
-User guide
-__________
+
+States
+______
 
 
 Transitioning
@@ -105,7 +104,9 @@ Transitioning
 
 You can transition to a target state either asynchronously using *GOTO* or blocking using
 *WAIT*. Both commands will send an acknowledgement back: either **OK** if the transition was
-successful or **KO** if the target state is invalid.
+successful or **KO** if the target state is invalid. Please be aware that depending on the
+script a *WAIT* command might take some time: be sure to *socat* with a timeout in that
+case.
 
 You can pass arbitrary payload as well after the state. This payload will be passed down 
 during the transition to the shell script via the **$INPUT** variable. This variable is free-form
@@ -153,5 +154,6 @@ When *automaton* is invoked it will automatically transition into its *initial* 
 the process terminates it will first transition the machine to its *terminal* state. This
 state can be reached from any other state and will run last. You can take advantage of this
 mechanism to perform some cleanup tasks as an example.
+
 
 .. include:: links.rst
