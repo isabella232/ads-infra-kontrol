@@ -18,6 +18,9 @@ When starting *Automaton* will setup a unix socket and listen for commands. Comm
 include *STATE* which will return the current state and *GOTO* which trips the machine and
 request to transition into another state.
 
+The machine will start in the prescribed state and always transition to its terminal state
+before shutting down (e.g convenient to implement graceful shutdown procedures).
+
 
 Getting started
 ***************
@@ -52,6 +55,7 @@ The YAML manifest will for instance look like:
     - tag: C
       shell: |
         echo terminating
+
 
 Each block in the *states* array must contain the state tag, a valid shell snippet and what 
 transitions are allowed via the *next* array. Please note you can use a glob pattern and that
@@ -92,5 +96,62 @@ script as the **$INPUT** environment variable. For instance:
     $cat foo
     hello
 
+User guide
+__________
+
+
+Transitioning
+*************
+
+You can transition to a target state either asynchronously using *GOTO* or blocking using
+*WAIT*. Both commands will send an acknowledgement back: either **OK** if the transition was
+successful or **KO** if the target state is invalid.
+
+You can pass arbitrary payload as well after the state. This payload will be passed down 
+during the transition to the shell script via the **$INPUT** variable. This variable is free-form
+and can be wathever. For instance:
+
+.. code-block:: shell
+
+    $echo GOTO B '{"counter": 123}' | socat - /tmp/sock
+    OK
+
+Whenever transitioning to a state the associate shell script will be executed and run from
+where the *automaton* command was invoked. The shell script standard outputs will be piped
+and logged in debug mode.
+
+The unix socket used for communication is always passed down as the $SOCKET variable. You can
+in addition set variables at any moment by using the *SET* command. Those variables will be
+set for any subsequent shell script invokations. For instance if you wish **$COUNTER** to be
+made available at the next transition and set it to "123" you can do:
+
+.. code-block:: shell
+
+    $echo SET COUNTER 123 | socat - /tmp/sock
+    OK
+
+Please note you can send commands to the machine from *within* a script. This is handy to
+implement cycles or to trip the machine based on some condition. For instance the following
+state will transition to itself every minute:
+
+.. code-block:: yaml
+
+    - tag X
+      shell: |
+        echo looping state
+        sleep 60
+        echo GOTO X | socat - $SOCKET
+
+Whenever transitioning the current shell script will be forcefully killed (provided it is
+still running). The running script will be given a grace period of a few seconds to complete
+after which it will abort on a *SIGKILL*.
+
+Initial & terminal states
+*************************
+
+When *automaton* is invoked it will automatically transition into its *initial* state. Whenever
+the process terminates it will first transition the machine to its *terminal* state. This
+state can be reached from any other state and will run last. You can take advantage of this
+mechanism to perform some cleanup tasks as an example.
 
 .. include:: links.rst

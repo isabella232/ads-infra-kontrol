@@ -41,6 +41,7 @@ class Actor(FSM):
         self.fifo = deque()
         self.path = '%s actor' % self.tag
         self.states = {js['tag']:js for js in cfg['states']}
+        self.env = {}
 
     def reset(self, data):
        
@@ -86,18 +87,18 @@ class Actor(FSM):
                         # - $INPUT is optional and set to whatever was specified in the GOTO
                         #   request
                         #
-                        env = \
+                        self.env.update(
                         {
                             'SOCKET': abspath(self.cfg.args.socket),
                             'INPUT': msg.extra
-                        }
+                        })
 
                         data.tick = time.time()
                         data.pid = Popen(self.cur['shell'],
                         close_fds=True,
                         bufsize=0,
                         shell=True,
-                        env=env,
+                        env=self.env,
                         preexec_fn=os.setsid,
                         stderr=STDOUT,
                         stdout=PIPE)
@@ -185,20 +186,37 @@ class Actor(FSM):
 
             #
             # - parse the incoming command
-            # - right now we support WAIT, GOTO and STATE
+            # - right now we support WAIT, GOTO, SET and STATE
             #
-            tokens = msg['raw'].split(' ')
-            assert tokens[0] in ['STATE', 'GOTO', 'WAIT'], 'invalid command'
+            try:
+                tokens = msg['raw'].split(' ')
+                assert tokens[0] in ['STATE', 'GOTO', 'WAIT', 'SET'], 'invalid command'
+                if tokens[0] == 'STATE':
+                    self._ack(msg, self.cur['tag'])
 
-            if tokens[0] == 'STATE':
-                self._ack(msg, self.cur['tag'])
-            
-            elif tokens[0] in ['GOTO', 'WAIT']:
-                msg.state = tokens[1]
-                msg.extra = ' '.join(tokens[2:]) if len(tokens) > 2 else ''
-                msg.wait = tokens[0] == 'WAIT'
-                msg.tick = time.time()
-                self.fifo.append(msg)
+                elif tokens[0] == 'SET':
+
+                    #
+                    # - set the specified key/value pair onto the environment dict
+                    #   used when invoking the shell script
+                    #
+                    self.env[tokens[1]] = ' '.join(tokens[2:])
+                
+                elif tokens[0] in ['GOTO', 'WAIT']:
+
+                    #
+                    # - pass the incoming message
+                    # - depending on the command the socket will be replied to
+                    #   immediately or later
+                    #
+                    msg.state = tokens[1]
+                    msg.extra = ' '.join(tokens[2:]) if len(tokens) > 2 else ''
+                    msg.wait = tokens[0] == 'WAIT'
+                    msg.tick = time.time()
+                    self.fifo.append(msg)
+           
+            except Exception:
+                self._ack(msg, 'KO')
 
         else:
             super(Actor, self).specialized(msg)
