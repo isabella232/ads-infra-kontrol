@@ -71,20 +71,24 @@ lifecycle you wish to enforce. The tool will install itself under <em>/usr/local
 When starting <em>Automaton</em> will setup a unix socket and listen for commands. Commands
 include <em>STATE</em> which will return the current state and <em>GOTO</em> which trips the machine and
 request to transition into another state.</p>
+<p>The machine will start in the prescribed state and always transition to its terminal state
+before shutting down (e.g convenient to implement graceful shutdown procedures).</p>
 </div>
 <div class="section" id="getting-started">
 <h3>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h3>
-<p>Write a first simple YAML manifest called <em>bot.yml</em> with two states <em>A</em> and <em>B</em>. <em>A</em> can
-switch to <em>B</em> and <em>B</em> will pause for 5 seconds and write to a local <em>foo</em> file. Note
-<em>B</em> can transition to itself but not <em>A</em>.</p>
+<p>Write a first simple YAML manifest called <em>bot.yml</em> with 3 states <em>A</em>, <em>B</em> and <em>C</em>. <em>A</em>
+can switch to <em>B</em> and <em>B</em> will pause for 5 seconds and write to a local <em>foo</em> file. Note
+<em>B</em> can transition to itself but not <em>A</em>. <em>C</em> is simply the terminal state the machine
+will transition too upon shutdown.</p>
 <div class="figure align-center">
 <a class="reference internal image-reference" href="_images/A-B.png"><img alt="_images/A-B.png" src="_images/A-B.png" style="width: 75%;" /></a>
 </div>
 <p>The YAML manifest will for instance look like:</p>
 <div class="highlight-YAML"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">initial</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">A</span>
+<span class="l l-Scalar l-Scalar-Plain">terminal</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">C</span>
 <span class="l l-Scalar l-Scalar-Plain">states</span><span class="p p-Indicator">:</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">tag</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">A</span>
-  <span class="l l-Scalar l-Scalar-Plain">shell</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">echo A</span>
+  <span class="l l-Scalar l-Scalar-Plain">shell</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">echo starting</span>
   <span class="l l-Scalar l-Scalar-Plain">next</span><span class="p p-Indicator">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">B</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">tag</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">B</span>
@@ -94,6 +98,9 @@ switch to <em>B</em> and <em>B</em> will pause for 5 seconds and write to a loca
   <span class="l l-Scalar l-Scalar-Plain">next</span><span class="p p-Indicator">:</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">A</span>
     <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">B</span>
+<span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">tag</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">C</span>
+  <span class="l l-Scalar l-Scalar-Plain">shell</span><span class="p p-Indicator">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">echo terminating</span>
 </pre></div>
 </div>
 <p>Each block in the <em>states</em> array must contain the state tag, a valid shell snippet and what
@@ -112,6 +119,7 @@ A
 </div>
 <p>Now let&#8217;s trip it to the B state. After 5 seconds you should be able to see that <em>foo</em> file.</p>
 <div class="highlight-shell"><div class="highlight"><pre><span></span><span class="nv">$echo</span> GOTO B <span class="p">|</span> socat - /tmp/sock
+OK
 <span class="nv">$ls</span> -s foo
 <span class="m">0</span> foo
 </pre></div>
@@ -120,10 +128,58 @@ A
 payload. What&#8217;s echoed to the socat after the state will be passed down verbatim to the shell
 script as the <strong>$INPUT</strong> environment variable. For instance:</p>
 <div class="highlight-shell"><div class="highlight"><pre><span></span><span class="nv">$echo</span> GOTO B hello <span class="p">|</span> socat - /tmp/sock
+OK
 <span class="nv">$cat</span> foo
 hello
 </pre></div>
 </div>
+</div>
+</div>
+<div class="section" id="user-guide">
+<h2>User guide<a class="headerlink" href="#user-guide" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="transitioning">
+<h3>Transitioning<a class="headerlink" href="#transitioning" title="Permalink to this headline">¶</a></h3>
+<p>You can transition to a target state either asynchronously using <em>GOTO</em> or blocking using
+<em>WAIT</em>. Both commands will send an acknowledgement back: either <strong>OK</strong> if the transition was
+successful or <strong>KO</strong> if the target state is invalid.</p>
+<p>You can pass arbitrary payload as well after the state. This payload will be passed down
+during the transition to the shell script via the <strong>$INPUT</strong> variable. This variable is free-form
+and can be wathever. For instance:</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span><span class="nv">$echo</span> GOTO B <span class="s1">&#39;{&quot;counter&quot;: 123}&#39;</span> <span class="p">|</span> socat - /tmp/sock
+OK
+</pre></div>
+</div>
+<p>Whenever transitioning to a state the associate shell script will be executed and run from
+where the <em>automaton</em> command was invoked. The shell script standard outputs will be piped
+and logged in debug mode.</p>
+<p>The unix socket used for communication is always passed down as the $SOCKET variable. You can
+in addition set variables at any moment by using the <em>SET</em> command. Those variables will be
+set for any subsequent shell script invokations. For instance if you wish <strong>$COUNTER</strong> to be
+made available at the next transition and set it to &#8220;123&#8221; you can do:</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span><span class="nv">$echo</span> SET COUNTER <span class="m">123</span> <span class="p">|</span> socat - /tmp/sock
+OK
+</pre></div>
+</div>
+<p>Please note you can send commands to the machine from <em>within</em> a script. This is handy to
+implement cycles or to trip the machine based on some condition. For instance the following
+state will transition to itself every minute:</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">tag X</span>
+  <span class="l l-Scalar l-Scalar-Plain">shell</span><span class="p p-Indicator">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">echo looping state</span>
+    <span class="no">sleep 60</span>
+    <span class="no">echo GOTO X | socat - $SOCKET</span>
+</pre></div>
+</div>
+<p>Whenever transitioning the current shell script will be forcefully killed (provided it is
+still running). The running script will be given a grace period of a few seconds to complete
+after which it will abort on a <em>SIGKILL</em>.</p>
+</div>
+<div class="section" id="initial-terminal-states">
+<h3>Initial &amp; terminal states<a class="headerlink" href="#initial-terminal-states" title="Permalink to this headline">¶</a></h3>
+<p>When <em>automaton</em> is invoked it will automatically transition into its <em>initial</em> state. Whenever
+the process terminates it will first transition the machine to its <em>terminal</em> state. This
+state can be reached from any other state and will run last. You can take advantage of this
+mechanism to perform some cleanup tasks as an example.</p>
 </div>
 </div>
 </div>
@@ -143,6 +199,11 @@ hello
 <li><a class="reference internal" href="#introduction">Introduction</a><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
 <li><a class="reference internal" href="#getting-started">Getting started</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#user-guide">User guide</a><ul>
+<li><a class="reference internal" href="#transitioning">Transitioning</a></li>
+<li><a class="reference internal" href="#initial-terminal-states">Initial &amp; terminal states</a></li>
 </ul>
 </li>
 </ul>
