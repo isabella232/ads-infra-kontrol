@@ -111,7 +111,7 @@ class Actor(FSM):
         try:
             self.client.refresh(data.lock, ttl=self.cfg['fover'])
         
-        except EtcdKeyNotFound:
+        except etcd.EtcdKeyNotFound:
             raise Aborted('lost key %s (excessive lag ?)' % data.lock.key)
 
         try:
@@ -123,7 +123,7 @@ class Actor(FSM):
             self.client.watch('/kontrol/%s/_dirty' % self.cfg['labels']['app'], timeout=self.cfg['fover'] * 0.75)
             logger.debug('%s : dirty watch triggered' % self.path)
 
-        except etcd.EtcdWatchTimedOut:
+        except (etcd.EtcdWatchTimedOut, etcd.EtcdConnectionFailed):
             pass
 
         #

@@ -15,7 +15,7 @@ if [ 0 -ne $? ]; then POD='{}'; fi;
 #
 # - set the required $KONTROL_* variables
 # - default $KONTROL_MODE to slave
-# - the damper & keepalive TTL are defaulted to 10 and 60 seconds
+# - the damper & keepalive TTL are defaulted to 10 and 25 seconds
 # - the fail over ($KONTROL_FOVER) is defaulted to 60 seconds
 # - default $KONTROL_ETCD to the docker host (right now the assumption
 #   is that each etcd2 proxy listens on 0.0.0.0 so that we can reach it
@@ -31,7 +31,7 @@ export KONTROL_HOST=${KONTROL_HOST:=$(echo $POD | jq -r '.status.hostIP')}
 export KONTROL_ETCD=${KONTROL_ETCD:=$KONTROL_HOST}
 export KONTROL_MODE=${KONTROL_MODE:=slave}
 export KONTROL_DAMPER=${KONTROL_DAMPER:=10}
-export KONTROL_TTL=${KONTROL_TTL:=60}
+export KONTROL_TTL=${KONTROL_TTL:=25}
 export KONTROL_FOVER=${KONTROL_FOVER:=60}
 export KONTROL_ID=$(echo $POD | jq -r '.metadata.name')
 export KONTROL_IP=$(echo $POD | jq -r '.status.podIP')
