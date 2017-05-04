@@ -17,6 +17,8 @@ logger = logging.getLogger('kontrol')
 class Actor(FSM):
 
     """
+    Leader watch/MD5 logic which a) attempts to grab a lock and b) runs a dirty
+    check to message the callback actor upon any MD5 change
     """
 
     tag = 'leader'
@@ -30,6 +32,9 @@ class Actor(FSM):
         self.snapshot = {}
         self.md5 = None
 
+        if 'callback' not in cfg:
+            logger.warning('%s: $KONTROL_CALLBACK is not set (user error ?)' % self.path)
+
     def reset(self, data):
 
         if hasattr(data, 'lock'):
@@ -37,9 +42,13 @@ class Actor(FSM):
 
                 #
                 # - make sure to proactively delete the lock key
+                # - this will allow to quickly fail-over provided the pod
+                #   is gracefully shutdown
                 #
-                self.client.delete(data.lock.key)
-            except Exception:
+                logger.debug('%s : clearing the lock' % self.path)
+                self.client.delete(data.lock)
+           
+            except etcd.EtcdKeyNotFound:
                 pass
 
         if self.terminate:
@@ -67,9 +76,11 @@ class Actor(FSM):
         #
         # - make sure we refresh our lock key
         # - a failure means we lagged too much and the key timed out
+        # - use $KONTROL_FOVER to set the lock ttl
         #
         try:
-            self.client.refresh(data.lock, ttl=10)
+            self.client.refresh(data.lock, ttl=self.cfg['fover'])
+      
         except EtcdKeyNotFound:
             raise Aborted('lost key %s (excessive lag ?)' % data.lock.key)
 
@@ -95,58 +106,57 @@ class Actor(FSM):
         #
         # - make sure we refresh our lock key
         # - a failure means we lagged too much and the key timed out
+        # - use $KONTROL_FOVER to set the lock ttl
         #
         try:
-            self.client.refresh(data.lock, ttl=10)
+            self.client.refresh(data.lock, ttl=self.cfg['fover'])
+        
         except EtcdKeyNotFound:
             raise Aborted('lost key %s (excessive lag ?)' % data.lock.key)
+
+        try:
+
+            #
+            # - block/wait on the dirty watch set off by the sequence actor
+            # - silently skip timeouts (worst case scenario)
+            #
+            self.client.watch('/kontrol/%s/_dirty' % self.cfg['labels']['app'], timeout=self.cfg['fover'] * 0.75)
+            logger.debug('%s : dirty watch triggered' % self.path)
+
+        except etcd.EtcdWatchTimedOut:
+            pass
 
         #
         # - grab the latest snapshot of our reporting pods
         # - order by the sequence index generated in state.py
+        # - filter out any pod with the down trigger
         # - compute the corresponding MD5 digest
-        # - compare against our last hash
-        #
-        # @todo can we possibly use a watch and/or track indices?
+        # - compare the new digest against the last one
+        # - if they differ trigger a callback after a cool-down period
         #
         now = time.time()
         hashed = hashlib.md5()
         raw = self.client.read('/kontrol/%s/pods' % self.cfg['labels']['app'], recursive=True)
         pods = [json.loads(item.value) for item in raw.leaves if item.value]
-        self.snapshot = sorted(pods, key=lambda pod: pod['seq'])
+        self.snapshot = sorted([pod for pod in pods if 'down' not in pod], key=lambda pod: pod['seq'])
         hashed.update(json.dumps(self.snapshot))
         md5 = ':'.join(c.encode('hex') for c in hashed.digest())
-        
-        #
-        # - compare the new digest against the last one
-        # - if they differ trigger a callback after a cool-down period
-        #
+        logger.debug('%s : MD5 -> %s' % (self.path, md5))
         if md5 != self.md5:
-            data.dirty = True
             self.md5 = md5
-            damper = int(self.cfg['damper'])
-            data.trigger = now + damper
-            logger.debug('%s : change detected, script invokation in %d s' % (self.path, damper))
-
-        if data.dirty and now > data.trigger:
-                        
-            #
-            # - reset the trigger
-            # - package the $PODS and $MD5 environment variables
-            # - post to the update actor if $KONTROL_CALLBACK is defined
-            # - the $STATE variable will be added by the callback actor
-            #
-            data.dirty = False
-            logger.debug('%s : invoking callback, MD5 digest -> %s' % (self.path, md5))
-            self.client.write('/kontrol/%s/md5' % self.cfg['labels']['app'], md5)
             if 'callback' in self.cfg:
 
+                #
+                # - request a callback run
+                # - use the damper to specify when to run
+                # - please note this may lead to multiple requests buffered by
+                #   the callback actor
+                #
                 msg = MSG({'request': 'invoke'})
                 msg.cmd = self.cfg['callback']
-                msg.env = {'MD5': md5, 'PODS': json.dumps(self.snapshot)}     
+                msg.env = {'MD5': md5, 'PODS': json.dumps(self.snapshot)}   
+                msg.ttl = now + int(self.cfg['damper'])
                 kontrol.actors['callback'].tell(msg)
-         
-            else:
-                logger.warning('%s: $KONTROL_CALLBACK is not set (user error ?)' % self.path)
-               
-        return 'watch', data, 1.0
+                logger.debug('%s : MD5 update, requesting callback' % self.path)
+
+        return 'watch', data, 0.0

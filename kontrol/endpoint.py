@@ -4,6 +4,7 @@ import kontrol
 import os
 import sys
 import urllib3
+import signal
 
 from flask import Flask, request
 from logging import DEBUG
@@ -16,7 +17,6 @@ from kontrol.leader import Actor as Leader
 from kontrol.sequence import Actor as Sequence
 from os.path import dirname
 from pykka import ThreadingFuture, Timeout
-from signal import signal, SIGINT, SIGQUIT, SIGTERM
 
 
 #: our ochopod logger
@@ -25,8 +25,26 @@ logger = logging.getLogger('kontrol')
 #: our flask endpoint (fronted by gunicorn)
 http = Flask('kontrol')
 
-#: simple trigger which will fail any request to GET /health
-terminating = False
+
+@http.route('/down', methods=['POST'])
+def _down():
+
+    #
+    # - special request terminating all the actors
+    # - this is triggered during shutdown by kontrol.sh
+    #
+    # @todo make sure the request only comes from localhost
+    #
+    try:
+        for key, actor in kontrol.actors.items():
+            logger.debug('terminating actor <%s>' % key)
+            shutdown(actor)
+
+        logger.warning('all actors now terminated, endpoint is idle')
+        return '', 200
+
+    except Exception:
+        return '', 500
 
 
 @http.route('/ping', methods=['PUT'])
@@ -90,6 +108,11 @@ def _script():
         return '', 500
 
 def up():
+
+    """
+    Entry point for the gunicorn worker. This will parse the environment
+    variables and boot all the required actors.
+    """
     
     #
     # - disable the default 3 retries that urllib3 enforces
@@ -122,7 +145,7 @@ def up():
         keys = [key for key in os.environ if key.startswith('KONTROL_')]            
         js = {key[8:].lower():_try(key) for key in keys}
         [logger.info(' - $%s -> %s' % (key, os.environ[key])) for key in keys]
-        assert all(key in js for key in ['id', 'etcd', 'ip', 'labels', 'mode', 'damper', 'ttl']), '1+ environment variables missing'
+        assert all(key in js for key in ['id', 'etcd', 'ip', 'labels', 'mode', 'damper', 'ttl', 'fover']), '1+ environment variables missing'
         tokens = set(js['mode'].split(','))
         assert all(key in ['slave', 'master', 'debug', 'verbose'] for key in tokens), 'invalid $KONTROL_MODE value'
 
@@ -181,20 +204,4 @@ def up():
         #
         why = diagnostic(failure)
         logger.error('top level failure -> %s' % why)
-
-def down():
-
-    global actors, terminating
-    if terminating:
-        for key, actor in kontrol.actors.items():
-            logger.debug('terminating actor <%s>' % key)
-            shutdown(actor)
-    #
-    # - gunicorn appears to trigger this callback twice
-    # - use a flag and only react the 2nd time
-    #
-    # @todo fix that mess
-    #        
-    terminating = True
-
     

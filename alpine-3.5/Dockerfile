@@ -1,16 +1,11 @@
 FROM alpine:3.5
 WORKDIR /home/kontrol
+COPY resources ./
 RUN apk add --no-cache git openssl socat curl jq g++ make python2 python2-dev ca-certificates py2-pip && \
     adduser -D kontrol && \
     chown kontrol /home/kontrol && \
-    pip install --upgrade pip pyyaml jsonschema eventlet shell supervisor cython gunicorn flask requests
-
-#
-# - pip install kontrol + automaton straight from github
-# - move the supervisord configuration file under /etc/supervisor
-#
-COPY resources ./
-RUN pip install git+https://github.com/UnityTech/ads-infra-kontrol.git && \
+    pip install --upgrade cython eventlet gunicorn pip supervisor && \
+    pip install git+https://github.com/UnityTech/ads-infra-kontrol.git && \
     mkdir -p /etc/supervisor && \
     mv *.conf /etc/supervisor && \
     apk del g++ make && \

@@ -56,12 +56,14 @@ class Actor(FSM):
             # - they etcd key is prefix by the master's application label
             # - attempt to read its payload
             #
+            js = {}
             now = time.time()
             nxt = self.fifo[0]
-            path = '/kontrol/%s/pods/%s' % (self.cfg['labels']['app'], nxt['key'])
+            key = '/kontrol/%s/pods/%s' % (self.cfg['labels']['app'], nxt['key'])
             try:
-                js = json.loads(self.client.read(path).value)
-            
+                js = json.loads(self.client.read(key).value)
+                seq = js['seq']
+
             except EtcdKeyNotFound:
 
                 #
@@ -69,18 +71,27 @@ class Actor(FSM):
                 # - in that case generate a new monotonic sequence index
                 # - attach it to the persisted pod payload
                 #
-                js = {'seq': self._next()}
-
-            js.update(nxt)
+                seq = self._next()
 
             #
             # - make sure to sort the keys in the json being serialized to etcd
             # - otherwise that could artifically change the MD5 digest
             #
+            nxt['seq'] = seq
+            dirty = nxt != js
+            js.update(nxt)
             ttl = int(self.cfg['ttl'])
-            self.client.write(path, json.dumps(js, sort_keys=True), ttl=ttl)
-            logger.debug('%s : keepalive from %s (pod #%d)' % (self.path, js['key'], js['seq']))
+            self.client.write(key, json.dumps(js, sort_keys=True), ttl=ttl)
+            logger.debug('%s : keepalive from %s (pod #%d%s)' % (self.path, js['key'], js['seq'], ', dirty' if dirty else ''))
             self.fifo.popleft()
+
+            #
+            # - if the incoming keepalive differs from what's in etcd update our
+            #   hidden '_dirty' key
+            # - this will automatically wake the leader up
+            #
+            if dirty:
+                self.client.write('/kontrol/%s/_dirty' % self.cfg['labels']['app'], '')
 
         return 'initial', data, 0.25
 

@@ -14,10 +14,12 @@ setup(
     packages=['automaton', 'kontrol'],
     install_requires=
     [
+        'flask>=0.12.0',
+        'jsonschema>=2.6.0',
         'pykka>=1.2.0',
         'python-etcd>=0.4.3',
         'pyyaml>=3.12',
-        'jsonschema>=2.6.0'
+        'requests>=2.13.0'
     ],
     package_data={
         'kontrol':

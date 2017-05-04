@@ -46,17 +46,19 @@ class Actor(FSM):
 
         #
         # - just spin if there is nothing to invoke
+        # - if we have buffered 1+ requests just peek at the latest one
+        #   and cycle back if its ttl has not been exceeded (e.g it's too
+        #   early to execute the script)
         #
-        if not self.fifo:
+        now = time.time()
+        if not self.fifo or now < self.fifo[-1].ttl:
             return 'initial', data, 0.25
 
         #
-        # - set the popen call to use piping if required
-        # - spawn an ancillary thread to forward the lines to our logger
-        # - this thread will go down automatically when the sub-process does
-        # - set the $STATE env. variable which contains the persistent user-data
+        # - it's time to run the script
+        # - consider the latest request we received
         #
-        msg = self.fifo[0]
+        msg = self.fifo[-1]
         try:
             raw = self.client.read('/kontrol/%s/state' % self.cfg['labels']['app']).value
             if raw:
@@ -65,14 +67,14 @@ class Actor(FSM):
             pass
 
         try:
-            data.tick = time.time()
+            data.tick = now
             data.pid = Popen(msg.cmd.split(' '),
             close_fds=True,
             bufsize=0,
             env=msg.env,
             stderr=PIPE,
             stdout=PIPE)
-       
+    
         except OSError:
             logger.warning('%s : script "%s" could not be found (config bug ?)' % (self.path, msg.cmd))   
             self.fifo.popleft()
@@ -105,11 +107,11 @@ class Actor(FSM):
                 logger.warning('%s : unable to parse stdout into json (script error ?)' % self.path)
 
             #
-            # - dequeue the FIFO
+            # - cleanup the FIFO (e.g drop all buffered requests)
             # - go back to the initial state
             #
             data.pid = None
-            self.fifo.popleft()
+            self.fifo.clear()
             return 'initial', data, 0
 
         return 'wait_for_completion', data, 0.25

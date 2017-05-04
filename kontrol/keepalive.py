@@ -1,11 +1,12 @@
 import json
 import logging
+import os
 import requests
 import string
 import struct
 import time
 
-from kontrol.fsm import Aborted, FSM
+from kontrol.fsm import Aborted, FSM, MSG
 from math import floor
 from os.path import isfile
 from socket import inet_aton
@@ -14,23 +15,31 @@ from socket import inet_aton
 #: our ochopod logger
 logger = logging.getLogger('kontrol')
 
-print 'fo'
+
 class Actor(FSM):
 
     """
     Actor emitting a periodic HTTP POST request against the controlling party. This enables us
     to report relevant information about the pod. The pod UUID is derived from its IPv4 address
     and launch time shortened via base 62 encoding.
+
+    @note the IP retrieved from the K8S API at boot time appears to be missing depending on timing
     """
 
     tag = 'keepalive'
 
     def __init__(self, cfg):
+
         super(Actor, self).__init__()
 
         self.cfg = cfg
-        self.path = '%s actor' % self.tag
+        self.data.last = 0
+        self.data.next = 0
         self.key = self._shorten(struct.unpack("!I", inet_aton(cfg['ip']))[0])
+        self.path = '%s actor' % self.tag
+        self.payload = ''
+        self.state = 'up'
+        
         logger.info('%s : now using key %s (pod %s)' % (self.path, self.key, cfg['id']))
 
     def reset(self, data):
@@ -42,56 +51,74 @@ class Actor(FSM):
 
     def initial(self, data):
         
-        if self.terminate:
-            raise Aborted('resetting')
-
-        #
-        # - assemble the payload that will be reported periodically to the masters
-        #   via the keepalive /PUT request
-        #
-        assert 'master' in self.cfg['labels'], 'invalid labels, "master" missing (bug?)'
-        state = \
-        {
-            'app': self.cfg['labels']['app'],
-            'id': self.cfg['id'],
-            'ip': self.cfg['ip'],
-            'key': self.key,
-            'payload': {},
-            'role': self.cfg['labels']['role']
-        }
-
         #
         # - $KONTROL_PAYLOAD is optional and can be set to point to a file
         #   on disk that contains json user-data (for instance some statistics)
         # - this free-form payload will be included in the keepalive HTTP PUT,
         #   persisted in etcd and made available to the callback script
+        # - stat the file and force a keepalive if it changed
+        # - silently skip any error
         #
         # @todo monitor the payload file and force a keepalive upon update
         #
+        force = False
         if 'payload' in self.cfg:
-            try:
-                with open(self.cfg['payload'], 'r') as f:
-                    state['payload'] = json.loads(f.read())
-        
-            except IOError:
-                pass
-            except ValueError:
-                pass
+                try:
+                    updated = os.stat(self.cfg['payload']).st_mtime
+                    if updated > data.last:
+                        data.last = updated
+                        logger.debug('%s : loading %s' % (self.path, self.cfg['payload']))
+                        with open(self.cfg['payload'], 'r') as f:
+                            self.payload = json.loads(f.read())
+                            force = True
+            
+                except (IOError, OSError, ValueError):
+                    pass
 
-        #
-        # - simply HTTP PUT our cfg with a 1 second timeout
-        # - the ping frequency is once every TTL * 0.75 seconds
-        # - please note any failure to post will be handled with exponential backoff by
-        #   the state-machine
-        #
-        # @todo use TLS
-        #
-        ttl = int(self.cfg['ttl'])
-        url = 'http://%s:8000/ping' % self.cfg['labels']['master']
-        resp = requests.put(url, data=json.dumps(state), headers={'Content-Type':'application/json'}, timeout=1.0)
-        resp.raise_for_status()
-        logger.debug('%s : HTTP %d <- PUT /ping %s' % (self.path, resp.status_code, url))            
-        return 'initial', data, ttl * 0.75
+        now = time.time()
+        if self.terminate or force or now > data.next:
+
+            #
+            # - assemble the payload that will be reported periodically to the masters
+            #   via the keepalive /PUT request
+            #
+            assert 'master' in self.cfg['labels'], 'invalid labels, "master" missing (bug?)'
+            js = \
+            {
+                'app': self.cfg['labels']['app'],
+                'id': self.cfg['id'],
+                'ip': self.cfg['ip'],
+                'key': self.key,
+                'payload': self.payload,
+                'role': self.cfg['labels']['role']
+            }
+
+            #
+            # - if we are going down force a keepalive and set the down trigger
+            # - this allows the leader to gracefully skim this pod 
+            #
+            if self.terminate:
+                js['down'] = True
+
+            #
+            # - simply HTTP PUT our cfg with a 1 second timeout
+            # - the ping frequency is once every TTL * 0.75 seconds
+            # - please note any failure to post will be handled with exponential backoff by
+            #   the state-machine
+            #
+            # @todo use TLS
+            #
+            ttl = int(self.cfg['ttl'])
+            url = 'http://%s:8000/ping' % self.cfg['labels']['master']
+            resp = requests.put(url, data=json.dumps(js, sort_keys=True), headers={'Content-Type':'application/json'}, timeout=1.0)
+            resp.raise_for_status()
+            data.next = now + ttl * 0.75       
+            logger.debug('%s : HTTP %d <- PUT /ping %s' % (self.path, resp.status_code, url))     
+
+        if self.terminate:
+            raise Aborted('resetting')
+
+        return 'initial', data, 0.25
 
     def _shorten(self, n):
 

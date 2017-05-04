@@ -195,7 +195,7 @@ class FSM(ThreadingActor):
         self.dying = 0
         self.latches = []
         self.path = '?'
-        self.payload = MSG(copy.deepcopy(payload) if payload else {})
+        self.data = MSG(copy.deepcopy(payload) if payload else {})
         self.terminate = 0
         self.last_reset = time.time()
         self.damper = 0
@@ -290,7 +290,7 @@ class FSM(ThreadingActor):
         #
         # - trip the machine into its initial state
         #
-        self.actor_ref.tell({'fsm': {'state': 'initial', 'data': self.payload}})
+        self.actor_ref.tell({'fsm': {'state': 'initial', 'data': self.data}})
 
     def on_receive(self, msg):
 
