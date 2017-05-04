@@ -82,7 +82,7 @@ class Actor(FSM):
             self.client.refresh(data.lock, ttl=self.cfg['fover'])
       
         except EtcdKeyNotFound:
-            raise Aborted('lost key %s (excessive lag ?)' % data.lock.key)
+            raise Aborted('lost key %s (excessive lag ?)' % data.lock)
 
         #
         # - query the lock directory
@@ -112,7 +112,7 @@ class Actor(FSM):
             self.client.refresh(data.lock, ttl=self.cfg['fover'])
         
         except etcd.EtcdKeyNotFound:
-            raise Aborted('lost key %s (excessive lag ?)' % data.lock.key)
+            raise Aborted('lost key %s (excessive lag ?)' % data.lock)
 
         try:
 
