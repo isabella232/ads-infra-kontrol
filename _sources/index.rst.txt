@@ -24,7 +24,6 @@ ________
 
    kontrol
    automaton
-   use-cases
 
 Indices and tables
 __________________

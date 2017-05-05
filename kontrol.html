@@ -70,24 +70,33 @@ pods and aggregate them in <a class="reference external" href="https://github.co
 <div class="figure align-center">
 <a class="reference internal image-reference" href="_images/overview.png"><img alt="_images/overview.png" src="_images/overview.png" style="width: 90%;" /></a>
 </div>
-<p>The goal is to detect any change within this set of pods and react to it via a user-defined
-callback. This callback is provided the ordered list of all participating pods with details
-such as their IPv4 address and so on.</p>
-<p>Kontrol is designed to address a few common use cases: passive monitoring and alerting,
+<p>The goal is to detect any global change within this set of pods and react to it via a
+user-defined callback. This callback is provided the ordered list of all participating
+pods with details such as their IPv4 address and so on.</p>
+<p><em>Kontrol</em> is designed to address a few common use cases: passive monitoring and alerting,
 distributed configuration or self-healing. You can use it in various topologies: separate
 master &amp; slave tiers, mixed mode (e.g self-managing pod ensemble) or even setup a chain of
 masters (e.g monitoring the monitor).</p>
 </div>
 <div class="section" id="system-design">
 <h3>System design<a class="headerlink" href="#system-design" title="Permalink to this headline">¶</a></h3>
-<p>Kontrol operates in either slave, master or mixed mode. A <strong>slave</strong> will periodically emit a
-keepalive payload to its <strong>master</strong> tier. This payload include information about the pod itself
-plus some optional user-data. The masters will receive those keepalives and maintain a MD5 digest
-reflecting the overall ensemble state. Any time this digest changes for whatever reason a
-user defined callback is executed. The masters are HA and will fail-over in case of problem. They
-are typically run via a <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> deployment fronted by a service. Any master can receive
-keepalives but only one at any given is in charge of tracking the digest and executing the callback.</p>
-<p>All the locking, leader election and persistence is done 100% in <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a>.</p>
+<p><em>Kontrol</em> operates in either slave, master or mixed mode. A <strong>slave</strong> will periodically emit a
+keepalive message to its <strong>master</strong> tier. This message include information about the pod itself
+plus some optional json payload retrieved from a configurable file on disk. If this feature is
+enabled the slave will track any update to that file and force a keepalive upon modification. This
+mechanism is meant to be used in conjunction with <em>automaton</em> in which case the local state machine
+could for instance update the file on disk whenever it transitions.</p>
+<p>Please note pods always must define at least the <em>app</em> and <em>role</em> labels. Those are use internally
+for indexing.</p>
+<p>The masters will receive those keepalives and maintain a MD5 digest reflecting the global system
+state. Any time this digest changes for whatever reason a user defined callback is scheduled after
+a configurable delay. This amortization mechanism is designed to minimize spurrious callback runs
+in case the multiple changes are detected within a short period of time. The MD5 hash will change
+whenever pods go up, down or update their payload.</p>
+<p>The masters are HA and will fail-over in case of problem. They are typically run via a <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a>
+deployment fronted by a service. Any master can receive keepalives but only one at any given time
+is in charge of tracking the digest and executing the callback. All the locking, leader election
+and persistence is done via <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a>.</p>
 <div class="figure align-center">
 <a class="reference internal image-reference" href="_images/schematic.png"><img alt="_images/schematic.png" src="_images/schematic.png" style="width: 90%;" /></a>
 </div>
@@ -96,26 +105,20 @@ own monitoring logic.</p>
 </div>
 <div class="section" id="pod-ordering">
 <h3>Pod ordering<a class="headerlink" href="#pod-ordering" title="Permalink to this headline">¶</a></h3>
-<p>It is crucial to keep consistent ordering for the pods that are monitored. Kontrol does it by first
-identifying pods using their base 62 shortened <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> IPv4 address. A monotonic integer sequence
-is also assigned to each pod the first time they emit a keepalive. This sequence counter is then
-persisted as long as the pod is alive.</p>
-</div>
-<div class="section" id="action-reaction">
-<h3>Action/Reaction<a class="headerlink" href="#action-reaction" title="Permalink to this headline">¶</a></h3>
-<p>Kontrol also allows slaves to execute arbitrary commands on behalf of the master. This mechanism
-is the primary way to actively control your pod ensemble. Those commands are run by the <em>kontrol</em>
-user and anything written to the standard output is sent back to the master.</p>
-<p>It is also important to note that the callback has the ability to persist its own user-data across
-multiple invokations. This is critical to maintain consistent runtime information describing how
-the overall system is evolving. A typical use-case would be to assign and track custom ids or to
-be able to re-assign existing data to new pods.</p>
+<p>It is crucial to keep consistent ordering for the pods that are being monitored. <em>Kontrol</em> does it
+by first identifying pods using their base 62 shortened <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> IPv4 address. A <em>monotonic</em>
+integer sequence is also assigned to each pod the first time they emit a keepalive. This sequence
+counter is then persisted as long as the pod is alive.</p>
 </div>
 <div class="section" id="telemetry">
 <h3>Telemetry<a class="headerlink" href="#telemetry" title="Permalink to this headline">¶</a></h3>
-<p>You also have the option to relay arbitrary json data in the keepalive requests that are emitted
-periodically. This is done by directing Kontrol to use a json file on disk. Any update to this file
-will be reflected in the overall pod snapshot and trigger a callback.</p>
+<p><em>Kontrol</em> also allows slaves to execute arbitrary commands on behalf of the master. This mechanism
+is the primary way to actively control your pod ensemble. Those shell commands are run by the <em>kontrol</em>
+user and anything written to the standard output is sent back to the master.</p>
+<p>It is also important to note that the callback has the ability to persist its own stateful data across
+multiple invokations. This is critical to maintain consistent runtime information describing how
+the overall system is evolving. A typical use-case would be to assign and track custom ids or to
+be able to re-assign existing data to new pods.</p>
 </div>
 </div>
 <div class="section" id="configuration">
@@ -127,16 +130,18 @@ the <a class="reference external" href="https://github.com/GoogleCloudPlatform/k
 <ul class="simple">
 <li><strong>$KONTROL_HOST</strong>: IPv4 address for the kube proxy (defaulted).</li>
 <li><strong>$KONTROL_IP</strong>: IPv4 address for the pod (defaulted).</li>
+<li><strong>$KONTROL_ID</strong>: pod identifier (defaulted).</li>
 <li><strong>$KONTROL_ETCD</strong>: IPv4 address for a <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> proxy (defaulted).</li>
 <li><strong>$KONTROL_LABELS</strong>: pod&#8217;s label dictionary (defaulted).</li>
 <li><strong>$KONTROL_MODE</strong>: pod operating mode, see below (defaulted).</li>
 <li><strong>$KONTROL_DAMPER</strong>: reactivity damper (defaulted).</li>
 <li><strong>$KONTROL_TTL</strong>: pod keepalive cutoff (defaulted).</li>
+<li><strong>$KONTROL_FOVER</strong>: master fail-over delay (defaulted).</li>
 <li><strong>$KONTROL_CALLBACK</strong>: executable to run upon callback (optional).</li>
 <li><strong>$KONTROL_PAYLOAD</strong>: local json file on disk to add to the keepalives (optional).</li>
 </ul>
 <p>The labels are picked for you from the <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> pod metadata. However you <strong>must</strong> at least
-define the <strong>app* and **role</strong> labels as they are used by Kontrol.</p>
+define the <em>app</em> and <em>role</em> labels.</p>
 </div>
 <div class="section" id="operating-mode">
 <h3>Operating mode<a class="headerlink" href="#operating-mode" title="Permalink to this headline">¶</a></h3>
@@ -160,42 +165,43 @@ $ docker run -e <span class="nv">KONTROL_MODE</span><span class="o">=</span>debu
 <p>The <strong>$KONTROL_ETCD</strong> variable is defaulted to the kube proxy IPv4. This assumes the <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> proxy running in there
 is listening on all interfaces. If you want to use a dedicated <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> proxy you can override this variable.</p>
 </div>
-<div class="section" id="pod-payload">
-<h3>Pod payload<a class="headerlink" href="#pod-payload" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="json-payload">
+<h3>JSON Payload<a class="headerlink" href="#json-payload" title="Permalink to this headline">¶</a></h3>
 <p>Slaves have the ability to include arbirary json payload in their keepalives. Simply set the <strong>$KONTROL_PAYLOAD</strong>
-variable to point to a file on disk containing valid serialized JSON. This content will be parsed and included
-in the keepalive request.</p>
+variable to point to a valid file on disk containing serialized JSON. This content will be parsed and included
+in the keepalives. Any modification to that file will cause the slave to parse it and force a keepalive.</p>
 <p>If the variable is not set or if the file does not exist or contains invalid JSON this process will be skipped.</p>
 </div>
 <div class="section" id="callback">
 <h3>Callback<a class="headerlink" href="#callback" title="Permalink to this headline">¶</a></h3>
-<p>Kontrol will periodically run a user-defined callback whenever a change is detected. This callback is an
-arbitrary command you can specify via the <strong>$KONTROL_CALLBACK</strong> variable. This subprocess is tracked and its
-standard error and output piped back. It does not have to be a shell or <a class="reference external" href="https://www.python.org/">Python</a> script or anything
-specific for that matter. The only requirement is to have it set to a valid command.</p>
-<p>The callback sub-process will be passed 3 environment variables:</p>
+<p>Kontrol will periodically run a user-defined callback whenever a global change is detected. This callback
+is an arbitrary shell command you can specify via the <strong>$KONTROL_CALLBACK</strong> variable. This subprocess is
+tracked and its standard error and output piped back. The shell invokation is done using the <em>kontrol</em> user.</p>
+<p>The callback subprocess will be passed 3 environment variables:</p>
 <ul class="simple">
 <li><strong>$HASH</strong>: latest MD5 digest.</li>
 <li><strong>$PODS</strong>: ordered list of pods as a JSON array.</li>
-<li><strong>$STATE</strong>: optional user-data.</li>
+<li><strong>$STATE</strong>: optional persistent state as a JSON entity.</li>
 </ul>
 <p>The <strong>$PODS</strong> variable contains a snapshot of the current pod ensemble. It is passed as a serialized JSON
 array whose entries are consistently ordered. Anything written on the standard output is assumed to be
 valid JSON syntax, will be persisted in <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> and passed back upon the next invokation as the <strong>$STATE</strong>
 variable.</p>
-<p>Each entry in the <strong>$POD</strong> array is a small dict containing a few fields. For instance:</p>
+<p>Each entry in the <strong>$POD</strong> array is a small object containing a few fields. For instance:</p>
 <div class="highlight-json"><div class="highlight"><pre><span></span>{
-    &quot;ip&quot;: 172.16.123.1
-    &quot;seq&quot;: 3
-    &quot;uuid&quot;: &quot;redis-39mysN&quot;
+    &quot;app&quot;: &quot;my-service&quot;,
+    &quot;id&quot; : &quot;redis-3621538101-fnnfp&quot;,
+    &quot;ip&quot;: 172.16.123.1,
+    &quot;key&quot; : &quot;39mysN&quot;,
+    &quot;payload&quot;: {&quot;some&quot;: &quot;stuff&quot;},
+    &quot;seq&quot;: 3,
     &quot;role&quot;: &quot;redis&quot;
-    &quot;payload&quot;: {&quot;some&quot;: &quot;stuff&quot;}
 }
 </pre></div>
 </div>
-<p>The UUID and sequence counter are guaranteed to be unique amongst all the monitored pods. The payload field is
-optional and set if the slaves have <strong>$KONTROL_PAYLOAD</strong> set.</p>
-<p>The following <a class="reference external" href="https://www.python.org/">Python</a> callback script will for instance display the UUID and IPv4 address assigned to each pod:</p>
+<p>The key and sequence counter are guaranteed to be unique amongst all the monitored pods. The payload field is
+optional and set if the slaves have <strong>$KONTROL_PAYLOAD</strong> set and tracking a valid json file on disk.</p>
+<p>The following <a class="reference external" href="https://www.python.org/">Python</a> callback script will for instance display the key and IPv4 address assigned to each pod:</p>
 <div class="highlight-python"><div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/python</span>
 
 <span class="kn">import</span> <span class="nn">os</span>
@@ -205,7 +211,7 @@ optional and set if the slaves have <strong>$KONTROL_PAYLOAD</strong> set.</p>
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
 
     <span class="k">for</span> <span class="n">pod</span> <span class="ow">in</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;PODS&#39;</span><span class="p">]):</span>
-        <span class="k">print</span> <span class="o">&gt;&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="s1">&#39; - #</span><span class="si">%d</span><span class="s1"> (</span><span class="si">%s</span><span class="s1">) -&gt; </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pod</span><span class="p">[</span><span class="s1">&#39;seq&#39;</span><span class="p">],</span> <span class="n">pod</span><span class="p">[</span><span class="s1">&#39;uuid&#39;</span><span class="p">],</span> <span class="n">pod</span><span class="p">[</span><span class="s1">&#39;ip&#39;</span><span class="p">])</span>
+        <span class="k">print</span> <span class="o">&gt;&gt;</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="s1">&#39; - #</span><span class="si">%d</span><span class="s1"> (</span><span class="si">%s</span><span class="s1">) -&gt; </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pod</span><span class="p">[</span><span class="s1">&#39;seq&#39;</span><span class="p">],</span> <span class="n">pod</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">],</span> <span class="n">pod</span><span class="p">[</span><span class="s1">&#39;ip&#39;</span><span class="p">])</span>
 </pre></div>
 </div>
 </div>
@@ -228,7 +234,6 @@ optional and set if the slaves have <strong>$KONTROL_PAYLOAD</strong> set.</p>
 <li><a class="reference internal" href="#overview">Overview</a></li>
 <li><a class="reference internal" href="#system-design">System design</a></li>
 <li><a class="reference internal" href="#pod-ordering">Pod ordering</a></li>
-<li><a class="reference internal" href="#action-reaction">Action/Reaction</a></li>
 <li><a class="reference internal" href="#telemetry">Telemetry</a></li>
 </ul>
 </li>
@@ -236,7 +241,7 @@ optional and set if the slaves have <strong>$KONTROL_PAYLOAD</strong> set.</p>
 <li><a class="reference internal" href="#environment-variables">Environment variables</a></li>
 <li><a class="reference internal" href="#operating-mode">Operating mode</a></li>
 <li><a class="reference internal" href="#etcd">Etcd</a></li>
-<li><a class="reference internal" href="#pod-payload">Pod payload</a></li>
+<li><a class="reference internal" href="#json-payload">JSON Payload</a></li>
 <li><a class="reference internal" href="#callback">Callback</a></li>
 </ul>
 </li>
