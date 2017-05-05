@@ -17,7 +17,7 @@ of whatever process is managed by *Kontrol*.
 Pick a distro and build from the top-level directory. For instance:
 
 ```
-$ docker build -f alpine-3.5/Dockerfile .
+$ docker build --no-cache -f alpine-3.5/Dockerfile .
 ```
 
 Please note the two packages can be installed directly from github via *pip* (especially

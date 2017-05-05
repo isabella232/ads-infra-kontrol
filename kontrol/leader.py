@@ -120,7 +120,8 @@ class Actor(FSM):
             # - block/wait on the dirty watch set off by the sequence actor
             # - silently skip timeouts (worst case scenario)
             #
-            self.client.watch('/kontrol/%s/_dirty' % self.cfg['labels']['app'], timeout=self.cfg['fover'] * 0.75)
+            tick = time.time()
+            self.client.watch('/kontrol/%s/_dirty' % self.cfg['labels']['app'], timeout=int(self.cfg['fover'] * 0.75))
             logger.debug('%s : dirty watch triggered' % self.path)
 
         except (etcd.EtcdWatchTimedOut, etcd.EtcdConnectionFailed):
@@ -136,6 +137,7 @@ class Actor(FSM):
         #
         now = time.time()
         hashed = hashlib.md5()
+        logger.debug('%s : blocked for %3.2f s, computing hash' % (self.path, now - tick))
         raw = self.client.read('/kontrol/%s/pods' % self.cfg['labels']['app'], recursive=True)
         pods = [json.loads(item.value) for item in raw.leaves if item.value]
         self.snapshot = sorted([pod for pod in pods if 'down' not in pod], key=lambda pod: pod['seq'])
