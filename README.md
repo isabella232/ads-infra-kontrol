@@ -14,7 +14,7 @@ of whatever process is managed by *Kontrol*.
 
 ### Building the image
 
-Pick a distro and build from the top-level directory. For instance:
+Pick one of the supported distros and build from the top-level directory. For instance:
 
 ```
 $ docker build --no-cache -f alpine-3.5/Dockerfile .
@@ -27,10 +27,13 @@ if you wish to include them in your own images or on your local dev box). For in
 $ sudo pip install git+https://github.com/UnityTech/ads-infra-kontrol.git
 ```
 
-Once installed you will have two packages: *kontrol* and *automaton*. The image entrypoint
+Once installed you will have two local packages: *kontrol* and *automaton*. The image entrypoint
 is *supervisord* which is started from the */home/kontrol* directory. By default *Kontrol* is
 not started and you have to explicitely add it to the supervisor jobs. Anything with extension
-*conf* found under */home/kontrol* will be included as a supervisor configuration file.
+*conf* found under */home/kontrol/supervisor* will be included as a supervisor configuration file.
+
+Please note [**telegraf**](https://github.com/influxdata/telegraf) 1.2.1 will be installed as well
+but won't run unless configured to do so in the derived images.
 
 ### Documentation
 

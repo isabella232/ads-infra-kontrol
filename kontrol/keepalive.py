@@ -82,7 +82,7 @@ class Actor(FSM):
             # - assemble the payload that will be reported periodically to the masters
             #   via the keepalive /PUT request
             #
-            assert 'master' in self.cfg['labels'], 'invalid labels, "master" missing (bug?)'
+            assert 'unity3d.com/master' in self.cfg['labels'], 'invalid labels, "unity3d.com/master" missing (bug?)'
             js = \
             {
                 'app': self.cfg['labels']['app'],
@@ -109,7 +109,7 @@ class Actor(FSM):
             # @todo use TLS
             #
             ttl = int(self.cfg['ttl'])
-            url = 'http://%s:8000/ping' % self.cfg['labels']['master']
+            url = 'http://%s:8000/ping' % self.cfg['labels']['unity3d.com/master']
             resp = requests.put(url, data=json.dumps(js, sort_keys=True), headers={'Content-Type':'application/json'}, timeout=1.0)
             resp.raise_for_status()
             data.next = now + ttl * 0.75       

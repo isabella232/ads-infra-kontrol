@@ -170,7 +170,7 @@ def up():
                 'etcd': ip,
                 'ip': ip,
                 'id': 'local',
-                'labels': {'app':'test', 'role': 'test', 'master': ip}
+                'labels': {'app':'test', 'role': 'test', 'unity3d.com/master': ip}
             }
             js.update(overrides)
         

@@ -41,7 +41,7 @@ class Actor(FSM):
         self.fifo = deque()
         self.path = '%s actor' % self.tag
         self.states = {js['tag']:js for js in cfg['states']}
-        self.env = {}
+        self.env = os.environ
 
     def reset(self, data):
        

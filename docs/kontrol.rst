@@ -113,6 +113,9 @@ The default value is set to *slave* meaning that Kontrol will just attempt to re
 Specifying *master* will enable receiving keepalives and tracking the MD5 digest. Please note you can
 specify both *master* and *slave* at the same time.
 
+Slave pods will use the **unity3d.com/master** label to send keepalive. This label should contain a valid
+identifier resolvable via the internal DNS (e.g a valid service CNAME record).
+
 The *verbose* token will turn debug logs on. Those are piped to the container standard output.
 
 Adding *debug* will allow to run in local debugging mode. In that case *slave* and *master* will be added
