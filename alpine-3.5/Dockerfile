@@ -20,7 +20,7 @@ RUN echo 'hosts: files dns' >> /etc/nsswitch.conf && \
     chown kontrol /home/kontrol && \
     pip install --upgrade cython eventlet gunicorn pip supervisor && \
     pip install git+https://github.com/UnityTech/ads-infra-kontrol.git && \
-    mkdir -p /etc/supervisor
+    mkdir -p /etc/supervisor && \
     mv *.conf /etc/supervisor && \
     apk del g++ make .build-deps && \
     chmod +x *.sh
