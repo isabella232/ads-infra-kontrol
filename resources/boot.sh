@@ -2,13 +2,10 @@
 
 #
 # - grab the current namespace from the downward api
-# - we expect it to be locarted at /hints/namespace
+# - we expect it to be passed as $NAMESPACE in the container definition
 # - if not found revert to 'default'
 #
-NAMESPACE=$(cat /hints/namespace)
-if [ $? -ne 0 ]; then
-    NAMESPACE='default'
-fi
+NAMESPACE=${NAMESPACE:=default}
 
 #
 # - default $KONTROL_MODE to slave
