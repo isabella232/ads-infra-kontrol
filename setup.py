@@ -19,7 +19,8 @@ setup(
         'pykka>=1.2.0',
         'python-etcd>=0.4.3',
         'pyyaml>=3.12',
-        'requests>=2.13.0'
+        'requests>=2.13.0',
+        'statsd>=2.0.0'
     ],
     package_data={
         'kontrol':

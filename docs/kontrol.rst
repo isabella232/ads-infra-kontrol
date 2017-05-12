@@ -92,6 +92,7 @@ the Kubernetes_ pod provides. A few can be specified in the manifest.
 - **$KONTROL_IP**: IPv4 address for the pod (defaulted).
 - **$KONTROL_ID**: pod identifier (defaulted).
 - **$KONTROL_ETCD**: IPv4 address for a Etcd_ proxy (defaulted).
+- **$KONTROL_ANNOTATIONS**: pod's annotation dictionary (defaulted).
 - **$KONTROL_LABELS**: pod's label dictionary (defaulted).
 - **$KONTROL_MODE**: pod operating mode, see below (defaulted).
 - **$KONTROL_DAMPER**: reactivity damper (defaulted).
@@ -103,6 +104,45 @@ the Kubernetes_ pod provides. A few can be specified in the manifest.
 The labels are picked for you from the Kubernetes_ pod metadata. However you **must** at least
 define the *app* and *role* labels.
 
+YAML manifest
+*************
+
+The manifest used to define a pod using *kontrol* should at least include the pod namespace via
+the downward API. It is expected to be mounted locally under */hints/namespace*. If the namespace
+is not passed the pod information will be queried at runtime using the *default* namespace. For
+instance:
+
+.. code-block:: YAML
+
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+    name: test
+    namespace: test
+    spec:
+    replicas: 1
+    template:
+        metadata:
+        labels:
+            app: test
+            role: example
+        spec:
+        volumes:
+        - name: hints
+            downwardAPI:
+            items:
+                - path: "namespace"
+                fieldRef:
+                    fieldPath: metadata.namespace
+
+        containers:
+        - image: registry2.applifier.info:5005/ads-infra-kontrol-alpine-3.5
+            name: kontrol
+            volumeMounts:
+            - name: hints
+            mountPath: /hints
+            readOnly: true
+
 
 Operating mode
 **************
@@ -113,8 +153,43 @@ The default value is set to *slave* meaning that Kontrol will just attempt to re
 Specifying *master* will enable receiving keepalives and tracking the MD5 digest. Please note you can
 specify both *master* and *slave* at the same time.
 
-Slave pods will use the **unity3d.com/master** label to send keepalive. This label should contain a valid
-identifier resolvable via the internal DNS (e.g a valid service CNAME record).
+Slave pods will use the **kontrol.unity3d.com/master** annotation to send keepalive. This annotation should
+contain a valid identifier resolvable via the internal DNS (e.g a valid service CNAME record). The following
+manifest will for instance define slaves that report keepalives to a service called "foo":
+
+.. code-block:: YAML
+
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+    name: test
+    namespace: test
+    spec:
+    replicas: 1
+    template:
+        metadata:
+        labels:
+            app: test
+            role: example
+        annotations:
+            kontrol.unity3d.com/master: foo.test.svc
+        spec:
+        volumes:
+        - name: hints
+            downwardAPI:
+            items:
+                - path: "namespace"
+                fieldRef:
+                    fieldPath: metadata.namespace
+
+        containers:
+        - image: registry2.applifier.info:5005/ads-infra-kontrol-alpine-3.5
+            name: kontrol
+            volumeMounts:
+            - name: hints
+            mountPath: /hints
+            readOnly: true
+
 
 The *verbose* token will turn debug logs on. Those are piped to the container standard output.
 

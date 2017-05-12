@@ -10,7 +10,7 @@ of monitored pods.
 
 It also offers the *Automaton* command-line tool to run a finite state machine that
 is controlled via a local unix socket. This machine can be used to script the lifecycle
-of whatever process is managed by *Kontrol*.
+of whatever process is managed by *kontrol*.
 
 ### Building the image
 
@@ -32,8 +32,13 @@ is *supervisord* which is started from the */home/kontrol* directory. By default
 not started and you have to explicitely add it to the supervisor jobs. Anything with extension
 *conf* found under */home/kontrol/supervisor* will be included as a supervisor configuration file.
 
-Please note [**telegraf**](https://github.com/influxdata/telegraf) 1.2.1 will be installed as well
-but won't run unless configured to do so in the derived images.
+### Metrics
+
+This image includes [**telegraf**](https://github.com/influxdata/telegraf) 1.2.1. Its core
+configuration is automatically generated at boot time based on the pod & node labels. Telegraf
+will not run by default unless explicitely started in the derived images. Please note you do
+need to define the *kontrol.unity3d.com/opentsdb* annotation and set it to a valid host for
+the configuration to be generated.
 
 ### Documentation
 

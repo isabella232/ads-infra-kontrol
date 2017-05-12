@@ -5,6 +5,7 @@ import requests
 import string
 import struct
 import time
+import statsd
 
 from kontrol.fsm import Aborted, FSM, MSG
 from math import floor
@@ -39,6 +40,7 @@ class Actor(FSM):
         self.path = '%s actor' % self.tag
         self.payload = ''
         self.state = 'up'
+        self.statsd = statsd.StatsClient('127.0.0.1', 8125)
         
         logger.info('%s : now using key %s (pod %s)' % (self.path, self.key, cfg['id']))
 
@@ -82,7 +84,7 @@ class Actor(FSM):
             # - assemble the payload that will be reported periodically to the masters
             #   via the keepalive /PUT request
             #
-            assert 'unity3d.com/master' in self.cfg['labels'], 'invalid labels, "unity3d.com/master" missing (bug?)'
+            assert 'kontrol.unity3d.com/master' in self.cfg['annotations'], 'invalid annotaions: "kontrol.unity3d.com/master" missing (bug?)'
             js = \
             {
                 'app': self.cfg['labels']['app'],
@@ -109,11 +111,12 @@ class Actor(FSM):
             # @todo use TLS
             #
             ttl = int(self.cfg['ttl'])
-            url = 'http://%s:8000/ping' % self.cfg['labels']['unity3d.com/master']
+            url = 'http://%s:8000/ping' % self.cfg['annotations']['kontrol.unity3d.com/master']
             resp = requests.put(url, data=json.dumps(js, sort_keys=True), headers={'Content-Type':'application/json'}, timeout=1.0)
             resp.raise_for_status()
             data.next = now + ttl * 0.75       
             logger.debug('%s : HTTP %d <- PUT /ping %s' % (self.path, resp.status_code, url))     
+            self.statsd.incr('keepalive_emitted,tier=kontrol')
 
         if self.terminate:
             raise Aborted('resetting')

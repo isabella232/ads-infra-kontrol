@@ -145,7 +145,7 @@ def up():
         keys = [key for key in os.environ if key.startswith('KONTROL_')]            
         js = {key[8:].lower():_try(key) for key in keys}
         [logger.info(' - $%s -> %s' % (key, os.environ[key])) for key in keys]
-        assert all(key in js for key in ['id', 'etcd', 'ip', 'labels', 'mode', 'damper', 'ttl', 'fover']), '1+ environment variables missing'
+        assert all(key in js for key in ['id', 'etcd', 'ip', 'labels', 'annotations', 'mode', 'damper', 'ttl', 'fover']), '1+ environment variables missing'
         tokens = set(js['mode'].split(','))
         assert all(key in ['slave', 'master', 'debug', 'verbose'] for key in tokens), 'invalid $KONTROL_MODE value'
 
@@ -170,7 +170,8 @@ def up():
                 'etcd': ip,
                 'ip': ip,
                 'id': 'local',
-                'labels': {'app':'test', 'role': 'test', 'unity3d.com/master': ip}
+                'labels': {'app':'test', 'role': 'test'},
+                'annotations': {'kontrol.unity3d.com/master': ip}
             }
             js.update(overrides)
         

@@ -6,6 +6,7 @@ import logging
 import os
 import requests
 import time
+import statsd
 
 from kontrol.fsm import Aborted, FSM, MSG
 
@@ -28,9 +29,10 @@ class Actor(FSM):
 
         self.cfg = cfg
         self.client = etcd.Client(host=cfg['etcd'], port=2379)
+        self.md5 = None
         self.path = '%s actor' % self.tag
         self.snapshot = {}
-        self.md5 = None
+        self.statsd = statsd.StatsClient('127.0.0.1', 8125)
 
         if 'callback' not in cfg:
             logger.warning('%s: $KONTROL_CALLBACK is not set (user error ?)' % self.path)
@@ -94,6 +96,7 @@ class Actor(FSM):
         ordered = sorted(item.key for item in items)        
         if data.lock == ordered[0]:
             logger.info('%s : now acting as leader' % self.path)
+            self.statsd.incr('lock_obtained,tier=kontrol')
             return 'watch', data, 0.0
 
         #
@@ -164,6 +167,7 @@ class Actor(FSM):
                 msg.env = {'MD5': md5, 'PODS': json.dumps(self.snapshot)}   
                 msg.ttl = now + int(self.cfg['damper'])
                 kontrol.actors['callback'].tell(msg)
+                self.statsd.incr('md5_changed,tier=kontrol')
                 logger.debug('%s : MD5 update, requesting callback' % self.path)
 
         return 'watch', data, 0.0

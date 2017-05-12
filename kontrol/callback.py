@@ -2,6 +2,7 @@ import etcd
 import json
 import logging
 import time
+import statsd
 
 from collections import deque
 from etcd import EtcdKeyNotFound
@@ -31,6 +32,7 @@ class Actor(FSM):
         self.client = etcd.Client(host=cfg['etcd'], port=2379)
         self.fifo = deque()
         self.path = '%s actor' % self.tag
+        self.statsd = statsd.StatsClient('127.0.0.1', 8125)
 
     def reset(self, data):
 
@@ -80,6 +82,7 @@ class Actor(FSM):
             self.fifo.popleft()
             return 'initial', data, 0.0
 
+        self.statsd.incr('callback_invoked,tier=kontrol')
         logger.debug('%s : invoking script "%s" (pid %s)' % (self.path, msg.cmd, data.pid.pid))
         return 'wait_for_completion', data, 0.25
 
