@@ -132,6 +132,7 @@ the <a class="reference external" href="https://github.com/GoogleCloudPlatform/k
 <li><strong>$KONTROL_IP</strong>: IPv4 address for the pod (defaulted).</li>
 <li><strong>$KONTROL_ID</strong>: pod identifier (defaulted).</li>
 <li><strong>$KONTROL_ETCD</strong>: IPv4 address for a <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a> proxy (defaulted).</li>
+<li><strong>$KONTROL_ANNOTATIONS</strong>: pod&#8217;s annotation dictionary (defaulted).</li>
 <li><strong>$KONTROL_LABELS</strong>: pod&#8217;s label dictionary (defaulted).</li>
 <li><strong>$KONTROL_MODE</strong>: pod operating mode, see below (defaulted).</li>
 <li><strong>$KONTROL_DAMPER</strong>: reactivity damper (defaulted).</li>
@@ -143,6 +144,36 @@ the <a class="reference external" href="https://github.com/GoogleCloudPlatform/k
 <p>The labels are picked for you from the <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> pod metadata. However you <strong>must</strong> at least
 define the <em>app</em> and <em>role</em> labels.</p>
 </div>
+<div class="section" id="yaml-manifest">
+<h3>YAML manifest<a class="headerlink" href="#yaml-manifest" title="Permalink to this headline">¶</a></h3>
+<p>The manifest used to define a pod using <em>kontrol</em> should at least include the pod namespace via
+the downward API. It is expected to passed as the <strong>$NAMESPACE</strong> environment variable. If this
+variable is not defined the pod information will be queried at runtime using the <em>default</em>
+namespace. For instance:</p>
+<div class="highlight-YAML"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">apiVersion</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="l l-Scalar l-Scalar-Plain">kind</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<span class="l l-Scalar l-Scalar-Plain">metadata</span><span class="p p-Indicator">:</span>
+<span class="l l-Scalar l-Scalar-Plain">name</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">test</span>
+<span class="l l-Scalar l-Scalar-Plain">namespace</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">test</span>
+<span class="l l-Scalar l-Scalar-Plain">spec</span><span class="p p-Indicator">:</span>
+<span class="l l-Scalar l-Scalar-Plain">replicas</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="l l-Scalar l-Scalar-Plain">template</span><span class="p p-Indicator">:</span>
+    <span class="l l-Scalar l-Scalar-Plain">metadata</span><span class="p p-Indicator">:</span>
+    <span class="l l-Scalar l-Scalar-Plain">labels</span><span class="p p-Indicator">:</span>
+        <span class="l l-Scalar l-Scalar-Plain">app</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">test</span>
+        <span class="l l-Scalar l-Scalar-Plain">role</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">example</span>
+    <span class="l l-Scalar l-Scalar-Plain">spec</span><span class="p p-Indicator">:</span>
+    <span class="l l-Scalar l-Scalar-Plain">containers</span><span class="p p-Indicator">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">image</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">registry2.applifier.info:5005/ads-infra-kontrol-alpine-3.5</span>
+      <span class="l l-Scalar l-Scalar-Plain">name</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">kontrol</span>
+      <span class="l l-Scalar l-Scalar-Plain">env</span><span class="p p-Indicator">:</span>
+      <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">name</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">NAMESPACE</span>
+        <span class="l l-Scalar l-Scalar-Plain">valueFrom</span><span class="p p-Indicator">:</span>
+          <span class="l l-Scalar l-Scalar-Plain">fieldRef</span><span class="p p-Indicator">:</span>
+            <span class="l l-Scalar l-Scalar-Plain">fieldPath</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">metadata.namespace</span>
+</pre></div>
+</div>
+</div>
 <div class="section" id="operating-mode">
 <h3>Operating mode<a class="headerlink" href="#operating-mode" title="Permalink to this headline">¶</a></h3>
 <p>Kontrol can run in different modes. The <strong>$KONTROL_MODE</strong> variable is a comma separated list of tokens
@@ -150,6 +181,36 @@ indicating what underlying actors to run. Valid token values include <em>slave</
 The default value is set to <em>slave</em> meaning that Kontrol will just attempt to report keepalive messages.
 Specifying <em>master</em> will enable receiving keepalives and tracking the MD5 digest. Please note you can
 specify both <em>master</em> and <em>slave</em> at the same time.</p>
+<p>Slave pods will use the <strong>kontrol.unity3d.com/master</strong> annotation to send keepalive. This annotation should
+contain a valid identifier resolvable via the internal DNS (e.g a valid service CNAME record). The following
+manifest will for instance define slaves that report keepalives to a service called &#8220;monitor&#8221;:</p>
+<div class="highlight-YAML"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">apiVersion</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="l l-Scalar l-Scalar-Plain">kind</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<span class="l l-Scalar l-Scalar-Plain">metadata</span><span class="p p-Indicator">:</span>
+<span class="l l-Scalar l-Scalar-Plain">name</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">test</span>
+<span class="l l-Scalar l-Scalar-Plain">namespace</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">test</span>
+<span class="l l-Scalar l-Scalar-Plain">spec</span><span class="p p-Indicator">:</span>
+<span class="l l-Scalar l-Scalar-Plain">replicas</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="l l-Scalar l-Scalar-Plain">template</span><span class="p p-Indicator">:</span>
+    <span class="l l-Scalar l-Scalar-Plain">metadata</span><span class="p p-Indicator">:</span>
+    <span class="l l-Scalar l-Scalar-Plain">labels</span><span class="p p-Indicator">:</span>
+        <span class="l l-Scalar l-Scalar-Plain">app</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">test</span>
+        <span class="l l-Scalar l-Scalar-Plain">role</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">example</span>
+    <span class="l l-Scalar l-Scalar-Plain">annotations</span><span class="p p-Indicator">:</span>
+        <span class="l l-Scalar l-Scalar-Plain">kontrol.unity3d.com/master</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">monitor.test.svc</span>
+    <span class="l l-Scalar l-Scalar-Plain">spec</span><span class="p p-Indicator">:</span>
+    <span class="l l-Scalar l-Scalar-Plain">containers</span><span class="p p-Indicator">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">image</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">registry2.applifier.info:5005/ads-infra-kontrol-alpine-3.5</span>
+      <span class="l l-Scalar l-Scalar-Plain">name</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">kontrol</span>
+      <span class="l l-Scalar l-Scalar-Plain">env</span><span class="p p-Indicator">:</span>
+      <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">name</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">KONTROL_MODE</span>
+        <span class="l l-Scalar l-Scalar-Plain">value</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">slave</span>
+      <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">name</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">NAMESPACE</span>
+        <span class="l l-Scalar l-Scalar-Plain">valueFrom</span><span class="p p-Indicator">:</span>
+          <span class="l l-Scalar l-Scalar-Plain">fieldRef</span><span class="p p-Indicator">:</span>
+            <span class="l l-Scalar l-Scalar-Plain">fieldPath</span><span class="p p-Indicator">:</span> <span class="l l-Scalar l-Scalar-Plain">metadata.namespace</span>
+</pre></div>
+</div>
 <p>The <em>verbose</em> token will turn debug logs on. Those are piped to the container standard output.</p>
 <p>Adding <em>debug</em> will allow to run in local debugging mode. In that case <em>slave</em> and <em>master</em> will be added
 as well and <strong>$KONTROL_HOST</strong> used for both the pod IPv4 and <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a>. In other words you can run a self contained
@@ -239,6 +300,7 @@ optional and set if the slaves have <strong>$KONTROL_PAYLOAD</strong> set and tr
 </li>
 <li><a class="reference internal" href="#configuration">Configuration</a><ul>
 <li><a class="reference internal" href="#environment-variables">Environment variables</a></li>
+<li><a class="reference internal" href="#yaml-manifest">YAML manifest</a></li>
 <li><a class="reference internal" href="#operating-mode">Operating mode</a></li>
 <li><a class="reference internal" href="#etcd">Etcd</a></li>
 <li><a class="reference internal" href="#json-payload">JSON Payload</a></li>
