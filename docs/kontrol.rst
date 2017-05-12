@@ -108,9 +108,9 @@ YAML manifest
 *************
 
 The manifest used to define a pod using *kontrol* should at least include the pod namespace via
-the downward API. It is expected to be mounted locally under */hints/namespace*. If the namespace
-is not passed the pod information will be queried at runtime using the *default* namespace. For
-instance:
+the downward API. It is expected to passed as the **$NAMESPACE** environment variable. If this
+variable is not defined the pod information will be queried at runtime using the *default*
+namespace. For instance:
 
 .. code-block:: YAML
 
@@ -127,21 +127,14 @@ instance:
             app: test
             role: example
         spec:
-        volumes:
-        - name: hints
-            downwardAPI:
-            items:
-                - path: "namespace"
-                fieldRef:
-                    fieldPath: metadata.namespace
-
         containers:
         - image: registry2.applifier.info:5005/ads-infra-kontrol-alpine-3.5
-            name: kontrol
-            volumeMounts:
-            - name: hints
-            mountPath: /hints
-            readOnly: true
+          name: kontrol
+          env:
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
 
 
 Operating mode
@@ -155,7 +148,7 @@ specify both *master* and *slave* at the same time.
 
 Slave pods will use the **kontrol.unity3d.com/master** annotation to send keepalive. This annotation should
 contain a valid identifier resolvable via the internal DNS (e.g a valid service CNAME record). The following
-manifest will for instance define slaves that report keepalives to a service called "foo":
+manifest will for instance define slaves that report keepalives to a service called "monitor":
 
 .. code-block:: YAML
 
@@ -172,23 +165,18 @@ manifest will for instance define slaves that report keepalives to a service cal
             app: test
             role: example
         annotations:
-            kontrol.unity3d.com/master: foo.test.svc
+            kontrol.unity3d.com/master: monitor.test.svc
         spec:
-        volumes:
-        - name: hints
-            downwardAPI:
-            items:
-                - path: "namespace"
-                fieldRef:
-                    fieldPath: metadata.namespace
-
         containers:
         - image: registry2.applifier.info:5005/ads-infra-kontrol-alpine-3.5
-            name: kontrol
-            volumeMounts:
-            - name: hints
-            mountPath: /hints
-            readOnly: true
+          name: kontrol
+          env:
+          - name: KONTROL_MODE
+            value: slave
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
 
 
 The *verbose* token will turn debug logs on. Those are piped to the container standard output.
