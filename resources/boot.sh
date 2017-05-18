@@ -8,14 +8,13 @@
 NAMESPACE=${NAMESPACE:=default}
 
 #
-# - default $KONTROL_MODE to slave
+# - default $KONTROL_MODE to nothing
 # - attempt to retrieve the pod metadata via the service API
 # - make sure to use the proper namespace
-# - timeout at 3 seconds per call
 # - retry with exponential backoff for up to 9 tries until we can fetch the IP
 # - if we find 'debug' in $KONTROL_MODE bypass the API call and default $POD to {}
 #
-export KONTROL_MODE=${KONTROL_MODE:=slave}
+export KONTROL_MODE=${KONTROL_MODE:=}
 echo $KONTROL_MODE | grep debug
 if [ $? -eq 0 ]; then
     POD='{}'
@@ -27,7 +26,7 @@ else
         BEARER_TOKEN_PATH=/var/run/secrets/kubernetes.io/serviceaccount/token
         TOKEN="$(cat $BEARER_TOKEN_PATH)"
         URL=https://$KUBERNETES_SERVICE_HOST/api/v1/namespaces/$NAMESPACE/pods/$HOSTNAME
-        POD=$(curl -s -f -m 3 $URL --insecure --header "Authorization: Bearer $TOKEN")
+        POD=$(curl -s -f -m 5 $URL --insecure --header "Authorization: Bearer $TOKEN")
         IP=$(echo $POD | jq -r '.status.podIP')
 
         #
@@ -52,11 +51,14 @@ else
     #
     # - query the node on which we are running
     # - the API lookup is done using the ip-x-x-x-x.ec2.internal hostname
-    # - use the EC2 API to retrieve it
+    # - use the EC2 API to retrieve it (provided we're on EC2 of course)
+    # - please note that on a local minikube setup $NODE will be empty
     #
-    LOCAL=$(curl http://169.254.169.254/latest/meta-data/local-hostname)
+    # @todo support multiple providers, not just AWS/EC2
+    #
+    LOCAL=$(curl -m 5 http://169.254.169.254/latest/meta-data/local-hostname)
     URL=https://$KUBERNETES_SERVICE_HOST/api/v1/nodes/$LOCAL
-    NODE=$(curl -s -f -m 3 $URL --insecure --header "Authorization: Bearer $TOKEN")
+    NODE=$(curl -s -f -m 5 $URL --insecure --header "Authorization: Bearer $TOKEN")
 fi
 
 #
