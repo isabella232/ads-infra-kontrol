@@ -149,8 +149,24 @@ with open('/etc/telegraf/telegraf.conf', 'wb') as fd:
 EOF
 
 #
-# - exec supervisord which in turn will run kontrol
-# - telegraf will not be started by default
+# - if kontrol is to be started append its supervisor job block
+# - otherwise don't even bother running gunicorn
+#
+echo $KONTROL_MODE | grep -E 'slave|master|debug'
+if [ $? -eq 0 ]; then
+
+    cat << EOF >> /etc/supervisor/supervisord.conf
+[program:kontrol]
+command=/home/kontrol/kontrol.sh
+stopsignal=INT
+stopasgroup=true
+stopwaitsecs=60
+EOF
+fi
+
+#
+# - exec supervisord
+# - please note telegraf will not be started by default
 # - track its PID file under /tmp/supervisord
 #
 PIDFILE=/tmp/supervisord

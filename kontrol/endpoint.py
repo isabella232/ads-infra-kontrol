@@ -57,7 +57,7 @@ def _ping():
     #
     try:
         js = request.get_json(silent=True, force=True)
-        logger.debug('PUT /ping <- keepalive from %s' % js['ip'] )
+        logger.debug('PUT /ping <- keepalive from %s' % js['ip'])
         kontrol.actors['sequence'].tell({'request': 'update', 'state': js})
         return '', 200
 
@@ -171,15 +171,21 @@ def up():
                 'ip': ip,
                 'id': 'local',
                 'labels': {'app':'test', 'role': 'test'},
-                'annotations': {'kontrol.unity3d.com/master': ip}
+                'annotations': {'kontrol.unity3d.com/master': '%s,foobar' % ip}
             }
             js.update(overrides)
         
         #
         # - slave mode just requires the KeepAlive and Script actors
+        # - split the comma separated list of masters
+        # - turn each into a KeepAlive actor
+        # - don't forget to add the Script actor as well
         #
         if 'slave' in tokens:
-            stubs += [KeepAlive, Script]
+            assert 'kontrol.unity3d.com/master' in js['annotations'], 'invalid annotations: "kontrol.unity3d.com/master" missing (bug?)'
+            masters = js['annotations']['kontrol.unity3d.com/master'].split(',')
+            stubs += [(KeepAlive, token) for token in masters] + [Script]
+
         
         #
         # - master mode requires the Callback, Leader and Sequence actors
@@ -194,8 +200,18 @@ def up():
         #
         assert all(key in js['labels'] for key in ['app', 'role']), '1+ labels missing'
         for stub in stubs:
-            logger.debug('starting actor <%s>' % stub.tag)
-            kontrol.actors[stub.tag] = stub.start(js)
+            if type(stub) is tuple:
+
+                #
+                # - if we have a (class, arg, ...) tuple pass the extra
+                #   arguments during the call to start()
+                #
+                actor, tag =  stub[0].start(js, *stub[1:]), stub[0].tag
+            else:
+                actor, tag = stub.start(js), stub.tag
+            
+            logger.debug('starting actor <%s>' % tag)
+            kontrol.actors[tag] = actor
     
     except Exception as failure:
 
