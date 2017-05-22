@@ -1,6 +1,7 @@
 import etcd
 import json
 import logging
+import os
 import time
 import statsd
 
@@ -33,6 +34,7 @@ class Actor(FSM):
         self.fifo = deque()
         self.path = '%s actor' % self.tag
         self.statsd = statsd.StatsClient('127.0.0.1', 8125)
+        self.data.left = None
 
     def reset(self, data):
 
@@ -53,13 +55,23 @@ class Actor(FSM):
         #   early to execute the script)
         #
         now = time.time()
-        if not self.fifo or now < self.fifo[-1].ttl:
+        if not self.fifo:
+            return 'initial', data, 0.25
+            
+        lapse = self.fifo[-1].ttl - now
+        if lapse > 0:
+            left = int(lapse)
+            if left != data.left:
+                data.left = left
+                logger.debug('%s : callback invokation in %d seconds' % (self.path, left))
+            
             return 'initial', data, 0.25
 
         #
         # - it's time to run the script
         # - consider the latest request we received
         #
+        data.left = None
         msg = self.fifo[-1]
         try:
             raw = self.client.read('/kontrol/%s/state' % self.cfg['labels']['app']).value
@@ -68,6 +80,11 @@ class Actor(FSM):
         except EtcdKeyNotFound:
             pass
 
+        #
+        # - override with the current environment
+        # - spawn the subprocess
+        #
+        msg.env.update(os.environ)
         try:
             data.tick = now
             data.pid = Popen(msg.cmd.split(' '),

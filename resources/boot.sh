@@ -88,6 +88,7 @@ export KONTROL_LABELS=$(echo $POD | jq -r '.metadata.labels')
 export KONTROL_ANNOTATIONS=$(echo $POD | jq -r '.metadata.annotations')
 export KONTROL_NODE_LABELS=$(echo $NODE | jq -r '.metadata.labels')
 export KONTROL_NODE_ANNOTATIONS=$(echo $NODE | jq -r '.metadata.annotations')
+export KONTROL_EIP=$(echo $NODE | jq -r '.status.addresses[] | select(.type=="ExternalIP").address')
 
 #
 # - remove the canned telegraf configuration

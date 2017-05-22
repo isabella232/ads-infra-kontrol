@@ -144,13 +144,13 @@ class Actor(FSM):
         # - if they differ trigger a callback after a cool-down period
         #
         now = time.time()
-        hashed = hashlib.md5()
+        hasher = hashlib.md5()
         logger.debug('%s : waited on the trigger for %3.2f s, computing hash...' % (self.path, now - tick))
         raw = self.client.read('/kontrol/%s/pods' % self.cfg['labels']['app'], recursive=True)
         pods = [json.loads(item.value) for item in raw.leaves if item.value]
         self.snapshot = sorted([pod for pod in pods if 'down' not in pod], key=lambda pod: pod['seq'])
-        hashed.update(json.dumps(self.snapshot))
-        md5 = ':'.join(c.encode('hex') for c in hashed.digest())
+        hasher.update(json.dumps(self.snapshot))
+        md5 = ':'.join(c.encode('hex') for c in hasher.digest())
         logger.debug('%s : MD5 -> %s' % (self.path, md5))
         if md5 != self.md5:
             self.md5 = md5
