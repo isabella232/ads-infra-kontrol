@@ -23,8 +23,9 @@ start in the prescribed state and always transition to its terminal state before
 Getting started
 ***************
 
-Write a first simple YAML manifest called *bot.yml* with 3 states *A*, *B* and *C*. *A*
-can switch to *B* and *B* will pause for 5 seconds and write to a local *foo* file. Note
+*Automaton* will by default rely on a YML manifest to defined its machine. You can also bind a
+Python script but let's focus first on a simple YAML manifest called *bot.yml* with 3 states *A*, *B* and *C*.
+The *A* state can switch to *B* and *B* will pause for 5 seconds and write to a local *foo* file. Note
 *B* can transition to itself but not *A*. *C* is the terminal state the machine will
 transition to upon shutdown.
 
@@ -154,6 +155,53 @@ When *automaton* is invoked it will automatically transition into its *initial* 
 the process terminates it will first transition the machine to its *terminal* state. This
 state can be reached from any other state and will run last. You can take advantage of this
 mechanism to perform some cleanup tasks as an example.
+
+
+Using Python
+____________
+
+As noted before *automaton* can also use a Python script as input. This script must include
+the *automaton.api* module and defines one function per state. The equivalent to the previous
+YAML manifest would for instance be:
+
+.. code-block:: Python
+
+    from automaton.api import State, States
+    import time
+
+
+    def A():
+        pass
+
+    def B(arg):
+        time.sleep(5.0)
+        with open('foo', 'wb') as fd:
+            fd.write(arg)
+
+    def C():
+        print 'terminating'
+
+    States([State(A, transitions=['B']), State(B, transitions=['A', 'B']), State(C)], initial='A', terminal='C')
+
+Each function can take at most one argument which will be set to the value of $INPUT. It is also possible
+to transition from one state to another using the *goto* helper. The following script would for instance
+automatically transition to its terminal state:
+
+.. code-block:: Python
+
+    from automaton.api import goto, State, States
+    import time
+
+
+    def A():
+        goto('B')
+
+    def B():
+        pass
+
+    States([State(A, transitions=['B']), State(B)], initial='A', terminal='B')
+
+Please note the *goto* helper is performing an asynchronous transition.
 
 
 .. include:: links.rst
