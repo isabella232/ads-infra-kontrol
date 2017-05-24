@@ -1,0 +1,148 @@
+[automaton] 2017-05-24 16:00:27,652 [DEBUG] ? : translated foo.py to YAML
+[automaton] 2017-05-24 16:00:27,661 [DEBUG] machine actor : idle can go to *, C
+[automaton] 2017-05-24 16:00:27,662 [INFO] machine actor : idle -> A
+[automaton] 2017-05-24 16:00:27,666 [DEBUG] machine actor : invoking script (pid 37990)
+[automaton] 2017-05-24 16:00:27,920 [DEBUG] machine actor : script took 0.3 s (pid 37990, exit 0)
+[automaton] 2017-05-24 16:00:40,735 [DEBUG] socket -> "GOTO B prout"
+[automaton] 2017-05-24 16:00:40,824 [DEBUG] machine actor : A can go to B, C
+[automaton] 2017-05-24 16:00:40,825 [INFO] machine actor : A -> B
+[automaton] 2017-05-24 16:00:40,831 [DEBUG] machine actor : invoking script (pid 38003)
+[automaton] 2017-05-24 16:00:45,123 [DEBUG] machine actor : killing pid 38003 (fifo -> #2 items)
+[automaton] 2017-05-24 16:00:45,126 [DEBUG] machine actor : script took 4.3 s (pid 38003, exit _)
+[automaton] 2017-05-24 16:00:45,127 [DEBUG] machine actor : B can go to A, B, C
+[automaton] 2017-05-24 16:00:45,127 [INFO] machine actor : B -> C
+[automaton] 2017-05-24 16:00:45,133 [DEBUG] machine actor : invoking script (pid 38024)
+[automaton] 2017-05-24 16:00:45,389 [DEBUG] machine actor : script took 0.3 s (pid 38024, exit 0)
+[automaton] 2017-05-24 16:00:45,389 [DEBUG] machine actor : pid 38024 -> 
+  . terminating
+[automaton] 2017-05-24 16:01:00,765 [DEBUG] ? : translated foo.py to YAML
+[automaton] 2017-05-24 16:01:00,773 [DEBUG] machine actor : idle can go to *, C
+[automaton] 2017-05-24 16:01:00,773 [INFO] machine actor : idle -> A
+[automaton] 2017-05-24 16:01:00,778 [DEBUG] machine actor : invoking script (pid 38066)
+[automaton] 2017-05-24 16:01:01,031 [DEBUG] machine actor : script took 0.3 s (pid 38066, exit 0)
+[automaton] 2017-05-24 16:01:03,517 [DEBUG] socket -> "GOTO B prout"
+[automaton] 2017-05-24 16:01:03,562 [DEBUG] machine actor : A can go to B, C
+[automaton] 2017-05-24 16:01:03,563 [INFO] machine actor : A -> B
+[automaton] 2017-05-24 16:01:03,569 [DEBUG] machine actor : invoking script (pid 38070)
+[automaton] 2017-05-24 16:01:08,873 [DEBUG] machine actor : script took 5.3 s (pid 38070, exit 0)
+[automaton] 2017-05-24 16:01:11,412 [DEBUG] machine actor : B can go to A, B, C
+[automaton] 2017-05-24 16:01:11,413 [INFO] machine actor : B -> C
+[automaton] 2017-05-24 16:01:11,419 [DEBUG] machine actor : invoking script (pid 38082)
+[automaton] 2017-05-24 16:01:11,670 [DEBUG] machine actor : script took 0.3 s (pid 38082, exit 0)
+[automaton] 2017-05-24 16:01:11,670 [DEBUG] machine actor : pid 38082 -> 
+  . terminating
+[automaton] 2017-05-24 16:06:00,503 [DEBUG] ? : translated foo.py to YAML
+[automaton] 2017-05-24 16:06:00,511 [DEBUG] machine actor : idle can go to *, C
+[automaton] 2017-05-24 16:06:00,511 [INFO] machine actor : idle -> A
+[automaton] 2017-05-24 16:06:00,515 [DEBUG] machine actor : invoking script (pid 38178)
+[automaton] 2017-05-24 16:06:00,767 [DEBUG] machine actor : script took 0.3 s (pid 38178, exit 0)
+[automaton] 2017-05-24 16:06:15,412 [DEBUG] machine actor : A can go to B, C
+[automaton] 2017-05-24 16:06:15,412 [INFO] machine actor : A -> C
+[automaton] 2017-05-24 16:06:15,419 [DEBUG] machine actor : invoking script (pid 38184)
+[automaton] 2017-05-24 16:06:15,671 [DEBUG] machine actor : script took 0.3 s (pid 38184, exit 0)
+[automaton] 2017-05-24 16:06:15,672 [DEBUG] machine actor : pid 38184 -> 
+  . terminating
+[automaton] 2017-05-24 16:06:16,490 [DEBUG] ? : translated foo.py to YAML
+[automaton] 2017-05-24 16:06:16,498 [DEBUG] machine actor : idle can go to *, C
+[automaton] 2017-05-24 16:06:16,499 [INFO] machine actor : idle -> A
+[automaton] 2017-05-24 16:06:16,504 [DEBUG] machine actor : invoking script (pid 38197)
+[automaton] 2017-05-24 16:06:16,755 [DEBUG] machine actor : script took 0.3 s (pid 38197, exit 1)
+[automaton] 2017-05-24 16:06:16,756 [DEBUG] machine actor : pid 38197 -> 
+  . Traceback (most recent call last):
+  .   File "<stdin>", line 8, in <module>
+  .   File "foo.py", line 6, in A
+  .     goto('B', arg='aad')
+  . NameError: global name 'goto' is not defined
+[automaton] 2017-05-24 16:06:19,031 [DEBUG] machine actor : A can go to B, C
+[automaton] 2017-05-24 16:06:19,031 [INFO] machine actor : A -> C
+[automaton] 2017-05-24 16:06:19,038 [DEBUG] machine actor : invoking script (pid 38200)
+[automaton] 2017-05-24 16:06:19,292 [DEBUG] machine actor : script took 0.3 s (pid 38200, exit 0)
+[automaton] 2017-05-24 16:06:19,292 [DEBUG] machine actor : pid 38200 -> 
+  . terminating
+[automaton] 2017-05-24 16:06:30,603 [DEBUG] ? : translated foo.py to YAML
+[automaton] 2017-05-24 16:06:30,612 [DEBUG] machine actor : idle can go to *, C
+[automaton] 2017-05-24 16:06:30,612 [INFO] machine actor : idle -> A
+[automaton] 2017-05-24 16:06:30,617 [DEBUG] machine actor : invoking script (pid 38233)
+[automaton] 2017-05-24 16:06:30,808 [DEBUG] socket -> "GOTO B aad"
+[automaton] 2017-05-24 16:06:31,313 [DEBUG] machine actor : script took 0.3 s (pid 38233, exit 0)
+[automaton] 2017-05-24 16:06:31,314 [DEBUG] machine actor : A can go to B, C
+[automaton] 2017-05-24 16:06:31,314 [INFO] machine actor : A -> B
+[automaton] 2017-05-24 16:06:31,320 [DEBUG] machine actor : invoking script (pid 38238)
+[automaton] 2017-05-24 16:06:36,627 [DEBUG] machine actor : script took 5.3 s (pid 38238, exit 0)
+[automaton] 2017-05-24 16:06:36,627 [DEBUG] machine actor : pid 38238 -> 
+  . aad
+[automaton] 2017-05-24 16:06:45,724 [DEBUG] machine actor : B can go to A, B, C
+[automaton] 2017-05-24 16:06:45,725 [INFO] machine actor : B -> C
+[automaton] 2017-05-24 16:06:45,731 [DEBUG] machine actor : invoking script (pid 38243)
+[automaton] 2017-05-24 16:06:45,987 [DEBUG] machine actor : script took 0.3 s (pid 38243, exit 0)
+[automaton] 2017-05-24 16:06:45,987 [DEBUG] machine actor : pid 38243 -> 
+  . terminating
+[automaton] 2017-05-24 16:06:46,341 [DEBUG] ? : translated foo.py to YAML
+[automaton] 2017-05-24 16:06:46,350 [DEBUG] machine actor : idle can go to *, C
+[automaton] 2017-05-24 16:06:46,350 [INFO] machine actor : idle -> A
+[automaton] 2017-05-24 16:06:46,356 [DEBUG] machine actor : invoking script (pid 38256)
+[automaton] 2017-05-24 16:06:46,561 [DEBUG] socket -> "GOTO B "
+[automaton] 2017-05-24 16:06:47,063 [DEBUG] machine actor : script took 0.3 s (pid 38256, exit 0)
+[automaton] 2017-05-24 16:06:47,063 [DEBUG] machine actor : A can go to B, C
+[automaton] 2017-05-24 16:06:47,063 [INFO] machine actor : A -> B
+[automaton] 2017-05-24 16:06:47,068 [DEBUG] machine actor : invoking script (pid 38262)
+[automaton] 2017-05-24 16:06:52,375 [DEBUG] machine actor : script took 5.3 s (pid 38262, exit 0)
+[automaton] 2017-05-24 16:06:52,376 [DEBUG] machine actor : pid 38262 -> 
+  . 
+[automaton] 2017-05-24 16:06:54,644 [DEBUG] machine actor : B can go to A, B, C
+[automaton] 2017-05-24 16:06:54,645 [INFO] machine actor : B -> C
+[automaton] 2017-05-24 16:06:54,651 [DEBUG] machine actor : invoking script (pid 38264)
+[automaton] 2017-05-24 16:06:54,902 [DEBUG] machine actor : script took 0.3 s (pid 38264, exit 0)
+[automaton] 2017-05-24 16:06:54,902 [DEBUG] machine actor : pid 38264 -> 
+  . terminating
+[automaton] 2017-05-24 16:09:56,834 [DEBUG] ? : translated foo.py to YAML
+[automaton] 2017-05-24 16:09:56,841 [DEBUG] machine actor : idle can go to *, C
+[automaton] 2017-05-24 16:09:56,842 [INFO] machine actor : idle -> A
+[automaton] 2017-05-24 16:09:56,848 [DEBUG] machine actor : invoking script (pid 38419)
+[automaton] 2017-05-24 16:09:57,041 [DEBUG] socket -> "GOTO B "
+[automaton] 2017-05-24 16:09:57,544 [DEBUG] machine actor : script took 0.3 s (pid 38419, exit 0)
+[automaton] 2017-05-24 16:09:57,544 [DEBUG] machine actor : A can go to B, C
+[automaton] 2017-05-24 16:09:57,545 [INFO] machine actor : A -> B
+[automaton] 2017-05-24 16:09:57,550 [DEBUG] machine actor : invoking script (pid 38424)
+[automaton] 2017-05-24 16:09:59,319 [DEBUG] machine actor : killing pid 38424 (fifo -> #2 items)
+[automaton] 2017-05-24 16:09:59,322 [DEBUG] machine actor : script took 1.8 s (pid 38424, exit _)
+[automaton] 2017-05-24 16:09:59,323 [DEBUG] machine actor : B can go to A, B, C
+[automaton] 2017-05-24 16:09:59,323 [INFO] machine actor : B -> C
+[automaton] 2017-05-24 16:09:59,329 [DEBUG] machine actor : invoking script (pid 38427)
+[automaton] 2017-05-24 16:09:59,582 [DEBUG] machine actor : script took 0.3 s (pid 38427, exit 0)
+[automaton] 2017-05-24 16:09:59,582 [DEBUG] machine actor : pid 38427 -> 
+  . terminating
+[automaton] 2017-05-24 16:12:00,118 [DEBUG] machine actor : translated foo.py to YAML
+[automaton] 2017-05-24 16:12:00,127 [DEBUG] machine actor : idle can go to *, C
+[automaton] 2017-05-24 16:12:00,127 [INFO] machine actor : idle -> A
+[automaton] 2017-05-24 16:12:00,132 [DEBUG] machine actor : invoking script (pid 38544)
+[automaton] 2017-05-24 16:12:00,329 [DEBUG] socket -> "GOTO B "
+[automaton] 2017-05-24 16:12:00,833 [DEBUG] machine actor : script took 0.3 s (pid 38544, exit 0)
+[automaton] 2017-05-24 16:12:00,833 [DEBUG] machine actor : A can go to B, C
+[automaton] 2017-05-24 16:12:00,833 [INFO] machine actor : A -> B
+[automaton] 2017-05-24 16:12:00,839 [DEBUG] machine actor : invoking script (pid 38549)
+[automaton] 2017-05-24 16:12:02,862 [DEBUG] machine actor : killing pid 38549 (fifo -> #2 items)
+[automaton] 2017-05-24 16:12:02,864 [DEBUG] machine actor : script took 2.0 s (pid 38549, exit _)
+[automaton] 2017-05-24 16:12:02,864 [DEBUG] machine actor : B can go to A, B, C
+[automaton] 2017-05-24 16:12:02,865 [INFO] machine actor : B -> C
+[automaton] 2017-05-24 16:12:02,870 [DEBUG] machine actor : invoking script (pid 38553)
+[automaton] 2017-05-24 16:12:03,121 [DEBUG] machine actor : script took 0.3 s (pid 38553, exit 0)
+[automaton] 2017-05-24 16:12:03,121 [DEBUG] machine actor : pid 38553 -> 
+  . terminating
+[automaton] 2017-05-24 16:15:12,496 [DEBUG] machine actor : translated ../foo.py to YAML
+[automaton] 2017-05-24 16:15:12,503 [DEBUG] machine actor : idle can go to *, C
+[automaton] 2017-05-24 16:15:12,503 [INFO] machine actor : idle -> A
+[automaton] 2017-05-24 16:15:12,508 [DEBUG] machine actor : invoking script (pid 38692)
+[automaton] 2017-05-24 16:15:12,704 [DEBUG] socket -> "GOTO B "
+[automaton] 2017-05-24 16:15:13,209 [DEBUG] machine actor : script took 0.3 s (pid 38692, exit 0)
+[automaton] 2017-05-24 16:15:13,209 [DEBUG] machine actor : A can go to B, C
+[automaton] 2017-05-24 16:15:13,210 [INFO] machine actor : A -> B
+[automaton] 2017-05-24 16:15:13,216 [DEBUG] machine actor : invoking script (pid 38697)
+[automaton] 2017-05-24 16:15:15,991 [DEBUG] machine actor : killing pid 38697 (fifo -> #2 items)
+[automaton] 2017-05-24 16:15:15,994 [DEBUG] machine actor : script took 2.8 s (pid 38697, exit _)
+[automaton] 2017-05-24 16:15:15,994 [DEBUG] machine actor : B can go to A, B, C
+[automaton] 2017-05-24 16:15:15,995 [INFO] machine actor : B -> C
+[automaton] 2017-05-24 16:15:16,004 [DEBUG] machine actor : invoking script (pid 38700)
+[automaton] 2017-05-24 16:15:16,257 [DEBUG] machine actor : script took 0.3 s (pid 38700, exit 0)
+[automaton] 2017-05-24 16:15:16,257 [DEBUG] machine actor : pid 38700 -> 
+  . terminating

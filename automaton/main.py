@@ -5,47 +5,17 @@ import os
 import socket
 import sys
 import time
-import yaml
 
-from jsonschema import ValidationError
-from kontrol.fsm import MSG, shutdown, diagnostic
+from kontrol.fsm import diagnostic, MSG, shutdown
 from logging import DEBUG
 from os.path import exists
 from machine import Actor as Machine
-from yaml import YAMLError
 
 
 #: Our automaton logger.
 logger = logging.getLogger('automaton')
 
-#: The YAML manifest schema
-schema = \
-"""
-type: object
-properties:
-    initial:
-        type: string
-    terminal:
-        type: string
-    states:
-        type: array
-        items:
-            type: object
-            additionalProperties: false
-            required:
-                - tag
-                - shell
-            properties:
-                tag:
-                    type: string
-                shell:
-                    type: string
-                next:
-                    type: array
-                    items:
-                        type: string
-"""
-
+actor = None
 
 def go():
 
@@ -53,7 +23,7 @@ def go():
     Entry point for the front-facing automaton script.
     """
     parser = argparse.ArgumentParser(description='automaton', prefix_chars='-')
-    parser.add_argument('manifest', type=str, help='YAML manifest')
+    parser.add_argument('input', type=str, help='YAML manifest or python script')
     parser.add_argument('-s', '--socket', type=str, default='/var/run/automaton.sock', help='unix socket path')
     parser.add_argument('-d', '--debug', action='store_true', help='debug logging on')
     args = parser.parse_args()
@@ -70,21 +40,11 @@ def go():
         #
         # - open our UNIX socket
         #
-        actor = None
         fd = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         fd.bind(args.socket)
         fd.listen(8)
 
         try:
-
-            #
-            # - load the YAML manifest
-            # - validate against our schema
-            #
-            with open(args.manifest, 'r') as f:
-                cfg = MSG(yaml.load(f.read()))
-            
-            jsonschema.validate(cfg, yaml.load(schema))
             
             #
             # - start our actor
@@ -93,11 +53,8 @@ def go():
             #   will just remain in 'idle' state until it receives something
             #   valid)
             #
-            cfg.args = args
-            actor = Machine.start(cfg)
-            msg = MSG({'request': 'cmd', 'raw': 'GOTO %s' % cfg['initial']})
-            msg.cnx = None
-            actor.tell(msg)
+            global actor
+            actor = Machine.start(args)
             while True:
 
                 #
@@ -123,19 +80,13 @@ def go():
 
         finally:
             if actor:
-                msg = MSG({'request': 'cmd', 'raw': 'GOTO %s' % cfg['terminal']})
+                msg = MSG({'request': 'cmd', 'raw': 'DIE'})
                 msg.cnx = None
                 actor.tell(msg)
                 shutdown(actor)
 
     except KeyboardInterrupt:
         pass
-
-    except ValidationError:
-        print 'invalid YAML manifest syntax'
-
-    except YAMLError:
-        print 'cannot load the YAML manifest'
 
     except Exception as failure:
         print 'unexpected failure -> %s' % diagnostic(failure)

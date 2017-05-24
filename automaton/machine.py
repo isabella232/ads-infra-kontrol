@@ -1,20 +1,54 @@
+import api
+import jsonschema
 import fnmatch
 import json
 import logging
 import os
 import signal
+import sys
 import time
+import yaml
 
 from collections import deque
-from kontrol.fsm import Aborted, FSM, diagnostic
+from kontrol.fsm import Aborted, diagnostic, FSM, MSG
 from os.path import abspath
-from os import getpgid, killpg
+from os import getpgid, killpg, path
 from subprocess import Popen, PIPE, STDOUT
 
 
 #: our ochopod logger
 logger = logging.getLogger('automaton')
 
+#: imported module (only used when using a python script as input) 
+module = None
+
+#: The YAML manifest schema
+schema = \
+"""
+type: object
+properties:
+    initial:
+        type: string
+    terminal:
+        type: string
+    states:
+        type: array
+        items:
+            type: object
+            additionalProperties: false
+            required:
+                - tag
+                - shell
+            properties:
+                tag:
+                    type: string
+                shell:
+                    type: string
+                next:
+                    type: array
+                    items:
+                        type: string
+"""
 
 class Actor(FSM):
 
@@ -29,19 +63,67 @@ class Actor(FSM):
 
     tag = 'machine'
 
-    def __init__(self, cfg):
+    def __init__(self, args):
         super(Actor, self).__init__()
 
-        self.cfg = cfg
+        #
+        # - if the argument is ending with .py try to import it
+        # - the code will be turned into a valid YAML manifest whose states
+        #   import & invoke individual functions 
+        #
+        self.path = '%s actor' % self.tag
+        if args.input.endswith('.py'):
+
+            global module
+            assert path.isfile(args.input), '%s is not a file' % args.input
+            absolute = path.abspath(args.input)
+            sys.path.insert(0, path.dirname(absolute))
+            module = path.basename(absolute[:-3])
+            __import__(module)
+            manifest = api.raw
+            logger.debug('%s : translated %s to YAML' % (self.path, args.input))
+
+        else:
+
+            with open(args.input, 'r') as f:
+                manifest = f.read()
+
+        #
+        # - load the YAML manifest
+        # - validate against our schema
+        #
+        try:
+            cfg = MSG(yaml.load(manifest))            
+            jsonschema.validate(cfg, yaml.load(schema))
+            self.cfg = cfg
+
+        except jsonschema.ValidationError:
+            print 'invalid YAML manifest syntax'
+            raise
+
+        except yaml.YAMLError:
+            print 'cannot load the YAML manifest'
+            raise
 
         #
         # - set the current state to 'idle' and let it transition to anything
         #
+        self.cfg.args = args
         self.cur = {'tag': 'idle', 'shell': '', 'next': ['*']}
-        self.fifo = deque()
-        self.path = '%s actor' % self.tag
-        self.states = {js['tag']:js for js in cfg['states']}
         self.env = os.environ
+        self.fifo = deque()
+        self.states = {js['tag']:js for js in self.cfg['states']}
+
+        #
+        # - transition to the initial state
+        #
+        msg = MSG()
+        msg.cnx = None
+        msg.state = self.cfg['initial']
+        msg.extra = ''
+        msg.wait = False
+        msg.tick = time.time()
+        self.fifo.append(msg)
 
     def reset(self, data):
        
@@ -68,8 +150,12 @@ class Actor(FSM):
             try:
 
                 assert msg.state in self.states, 'unknown state "%s"' % msg.state
-                allowed = self.cur['next'] if 'next' in self.cur else []
-                allowed.append(self.cfg['terminal'])
+                allowed = [] 
+                if self.cur['tag'] != self.cfg['terminal']:
+                    allowed += self.cur['next'] if 'next' in self.cur else []
+                    allowed.append(self.cfg['terminal'])
+
+                logger.debug('%s : %s can go to %s' % (self.path, self.cur['tag'], ', '.join(allowed)))
                 for pattern in allowed:
                     if fnmatch.fnmatch(msg.state, pattern):
                 
@@ -186,13 +272,24 @@ class Actor(FSM):
 
             #
             # - parse the incoming command
-            # - right now we support WAIT, GOTO, SET and STATE
+            # - right now we support WAIT, GOTO, SET, STATE and DIE
             #
             try:
                 tokens = msg['raw'].split(' ')
-                assert tokens[0] in ['STATE', 'GOTO', 'WAIT', 'SET'], 'invalid command'
+                assert tokens[0] in ['STATE', 'GOTO', 'WAIT', 'SET', 'DIE'], 'invalid command'
                 if tokens[0] == 'STATE':
                     self._ack(msg, self.cur['tag'])
+
+                elif tokens[0] == 'DIE':
+
+                    #
+                    # - transition to the terminal state
+                    #
+                    msg.state = self.cfg['terminal']
+                    msg.extra = ''
+                    msg.wait = False
+                    msg.tick = time.time()
+                    self.fifo.append(msg)
 
                 elif tokens[0] == 'SET':
 

@@ -1,0 +1,18 @@
+#
+# - state-machine controlling a single zookeeper broker
+# - please note /tmp/state will be used as our kontrol slave payload
+#
+initial: setup
+terminal: stop
+states:
+- tag: setup
+  shell: |
+    echo 1
+  next:
+    - stop
+    
+- tag: stop
+  shell: |
+    echo 2
+  next: 
+    - stop
