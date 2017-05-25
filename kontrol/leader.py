@@ -44,13 +44,12 @@ class Actor(FSM):
 
                 #
                 # - make sure to proactively delete the lock key
-                # - this will allow to quickly fail-over provided the pod
-                #   is gracefully shutdown
+                # - this will avoid leaving around keys to expire
                 #
                 logger.debug('%s : clearing the lock' % self.path)
                 self.client.delete(data.lock)
            
-            except etcd.EtcdKeyNotFound:
+            except (etcd.EtcdConnectionFailed, etcd.EtcdKeyNotFound):
                 pass
 
         if self.terminate:
