@@ -66,4 +66,8 @@ class States(object):
             }
             manifest['states'].append(js)
         
+        #
+        # - dump our internal YAML manifest
+        # - this will then by parsed by machine.py as if it came from the user
+        #
         raw = yaml.dump(manifest)

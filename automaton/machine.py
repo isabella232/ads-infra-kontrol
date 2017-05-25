@@ -26,6 +26,10 @@ module = None
 schema = \
 """
 type: object
+required:
+    - initial
+    - terminal
+    - states
 properties:
     initial:
         type: string
@@ -38,7 +42,6 @@ properties:
             additionalProperties: false
             required:
                 - tag
-                - shell
             properties:
                 tag:
                     type: string
@@ -165,30 +168,31 @@ class Actor(FSM):
                         #
                         logger.info('%s : %s -> %s' % (self.path, self.cur['tag'], msg.state))
                         self.cur = self.states[msg.state] 
+                        if 'shell' in self.cur:
 
-                        #
-                        # - invoke the shell snippet
-                        # - then spin and check on its status
-                        # - $SOCKET is the absolute filepath of our UNIX socket
-                        # - $INPUT is optional and set to whatever was specified in the GOTO
-                        #   request
-                        #
-                        self.env.update(
-                        {
-                            'SOCKET': abspath(self.cfg.args.socket),
-                            'INPUT': msg.extra
-                        })
+                            #
+                            # - invoke the shell snippet
+                            # - then spin and check on its status
+                            # - $SOCKET is the absolute filepath of our UNIX socket
+                            # - $INPUT is optional and set to whatever was specified in the GOTO
+                            #   request
+                            #
+                            self.env.update(
+                            {
+                                'SOCKET': abspath(self.cfg.args.socket),
+                                'INPUT': msg.extra
+                            })
 
-                        data.tick = time.time()
-                        data.pid = Popen(self.cur['shell'],
-                        close_fds=True,
-                        bufsize=0,
-                        shell=True,
-                        env=self.env,
-                        preexec_fn=os.setsid,
-                        stderr=STDOUT,
-                        stdout=PIPE)
-                        logger.debug('%s : invoking script (pid %s)' % (self.path, data.pid.pid))
+                            data.tick = time.time()
+                            data.pid = Popen(self.cur['shell'],
+                            close_fds=True,
+                            bufsize=0,
+                            shell=True,
+                            env=self.env,
+                            preexec_fn=os.setsid,
+                            stderr=STDOUT,
+                            stdout=PIPE)
+                            logger.debug('%s : invoking script (pid %s)' % (self.path, data.pid.pid))
 
                         #
                         # - if we are not blocking send the 'OK' ack immediately
@@ -222,34 +226,44 @@ class Actor(FSM):
         # - check if the subprocess is done or not
         #
         now = time.time()
-        complete = data.pid.poll() is not None
-
-        #
-        # - the process either completed or we have buffered state transitions
-        #   in our FIFO
-        # - pop the FIFO and cycle back to the initial state
-        # - if transitions are buffered forcelly terminate the running script
-        # - make sure to add a little damper otherwise any shell script that tries to
-        #   socat to the machine would kill itself
-        # - display the process standard outputs
-        #
-        if not complete and len(self.fifo) > 1 and (now - self.fifo[1].tick) > 1.0:
-            logger.debug('%s : killing pid %s (fifo -> #%d items)' % (self.path, data.pid.pid, len(self.fifo)))
+        if 'shell' in self.cur:
 
             #
-            # - use killpg to kill the whole sub-progress group
-            # - simply using the popen kill() method won't work
+            # - the process either completed or we have buffered state transitions
+            #   in our FIFO
+            # - pop the FIFO and cycle back to the initial state
+            # - if transitions are buffered forcelly terminate the running script
+            # - make sure to add a little damper otherwise any shell script that tries to
+            #   socat to the machine would kill itself
+            # - display the process standard outputs
             #
-            killpg(getpgid(data.pid.pid), signal.SIGTERM)
+            complete = data.pid.poll() is not None
+            if not complete and len(self.fifo) > 1 and (now - self.fifo[1].tick) > 1.0:
+                logger.debug('%s : killing pid %s (fifo -> #%d items)' % (self.path, data.pid.pid, len(self.fifo)))
+
+                #
+                # - use killpg to kill the whole sub-progress group
+                # - simply using the popen kill() method won't work
+                #
+                killpg(getpgid(data.pid.pid), signal.SIGTERM)
+                complete = True
+
+            if complete:
+                lapse = now - data.tick
+                code = data.pid.returncode
+                stdout = [line.rstrip('\n') for line in iter(data.pid.stdout.readline, b'')]
+                logger.debug('%s : script took %2.1f s (pid %s, exit %s)' % (self.path, lapse, data.pid.pid, code if code is not None else '_'))
+                if stdout:
+                    logger.debug('%s : pid %s -> \n  . %s' % (self.path, data.pid.pid, '\n  . '.join(stdout)))
+        else:
+
+            #
+            # - there was no shell invokation
+            # - set the complete trigger on
+            #
             complete = True
 
         if complete:
-            lapse = now - data.tick
-            code = data.pid.returncode
-            stdout = [line.rstrip('\n') for line in iter(data.pid.stdout.readline, b'')]
-            logger.debug('%s : script took %2.1f s (pid %s, exit %s)' % (self.path, lapse, data.pid.pid, code if code is not None else '_'))
-            if stdout:
-                logger.debug('%s : pid %s -> \n  . %s' % (self.path, data.pid.pid, '\n  . '.join(stdout)))
 
             #
             # - if blocking send back the 'OK' ack
