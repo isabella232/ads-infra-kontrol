@@ -171,7 +171,7 @@ def up():
                 'ip': ip,
                 'id': 'local',
                 'labels': {'app':'test', 'role': 'test'},
-                'annotations': {'kontrol.unity3d.com/master': '%s,foobar' % ip}
+                'annotations': {'kontrol.unity3d.com/master': '%s' % ip}
             }
             js.update(overrides)
         
@@ -191,12 +191,13 @@ def up():
         # - master mode requires the Callback, Leader and Sequence actors
         #
         if 'master' in tokens:
-            stubs += [Callback, Leader, Sequence]
+            stubs += [Leader, Sequence, Callback]
 
         #
         # - start our various actors
         # - we rely on the "app" label to identify the pod
         # - the "role" label is also used when sending keepalive updates
+        # - please note the dict is ordered and the actors will be shutdown in the same order 
         #
         assert all(key in js['labels'] for key in ['app', 'role']), '1+ labels missing'
         for stub in stubs:

@@ -158,7 +158,6 @@ class Actor(FSM):
                     allowed += self.cur['next'] if 'next' in self.cur else []
                     allowed.append(self.cfg['terminal'])
 
-                logger.debug('%s : %s can go to %s' % (self.path, self.cur['tag'], ', '.join(allowed)))
                 for pattern in allowed:
                     if fnmatch.fnmatch(msg.state, pattern):
                 
