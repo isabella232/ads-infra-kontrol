@@ -59,7 +59,7 @@ class Actor(FSM):
             js = {}
             now = time.time()
             nxt = self.fifo[0]
-            key = '/kontrol/%s/pods/%s' % (self.cfg['labels']['app'], nxt['key'])
+            key = '%s/pods/%s' % (self.cfg['prefix'], nxt['key'])
             try:
                 js = json.loads(self.client.read(key).value)
                 seq = js['seq']
@@ -91,7 +91,7 @@ class Actor(FSM):
             # - this will automatically wake the leader up
             #
             if dirty:
-                self.client.write('/kontrol/%s/_dirty' % self.cfg['labels']['app'], '')
+                self.client.write('%s/_dirty' % self.cfg['prefix'], '')
 
         return 'initial', data, 0.25
 
@@ -115,7 +115,7 @@ class Actor(FSM):
         # - simple CAS incrementing a monotonic integer counter
         # - this counter is used as a sequence to order our pods in a deterministic way  
         #
-        key = '/kontrol/%s/seq' % self.cfg['labels']['app']
+        key = '%s/seq' % self.cfg['prefix']
         while True:
             try:
 

@@ -196,10 +196,13 @@ def up():
         #
         # - start our various actors
         # - we rely on the "app" label to identify the pod
+        # - the etcd prefix for all our keys is /kontrol/<namespace>/<app>
         # - the "role" label is also used when sending keepalive updates
         # - please note the dict is ordered and the actors will be shutdown in the same order 
         #
+        assert 'NAMESPACE' in os.environ, '$NAMESPACE undefined (bug ?)'
         assert all(key in js['labels'] for key in ['app', 'role']), '1+ labels missing'
+        js['prefix'] = '/kontrol/%s/%s' % (os.environ['NAMESPACE'], js['labels']['app'])
         for stub in stubs:
             if type(stub) is tuple:
 

@@ -74,7 +74,7 @@ class Actor(FSM):
         data.left = None
         msg = self.fifo[-1]
         try:
-            raw = self.client.read('/kontrol/%s/state' % self.cfg['labels']['app']).value
+            raw = self.client.read('%s/state' % self.cfg['prefix']).value
             if raw:
                 msg.env['STATE'] = raw
         except EtcdKeyNotFound:
@@ -122,7 +122,7 @@ class Actor(FSM):
             # - attempt to parse stdout into a json object
             #
             try:
-                self.client.write('/kontrol/%s/state' % self.cfg['labels']['app'], ''.join(stdout))
+                self.client.write('%s/state' % self.cfg['prefix'], ''.join(stdout))
             except ValueError:
                 logger.warning('%s : unable to parse stdout into json (script error ?)' % self.path)
 
@@ -155,7 +155,7 @@ class Actor(FSM):
             # - simply read the state from etcd and return it
             #
             try:
-                return self.client.read('/kontrol/%s/state' % self.cfg['labels']['app']).value
+                return self.client.read('%s/state' % self.cfg['prefix']).value
 
             except EtcdKeyNotFound:
                 pass

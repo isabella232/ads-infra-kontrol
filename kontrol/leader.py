@@ -65,7 +65,7 @@ class Actor(FSM):
         #
         data.trigger = 0
         data.dirty = False
-        data.lock = self.client.write('/kontrol/%s/locks/leader' % self.cfg['labels']['app'], '', append=True, ttl=10).key
+        data.lock = self.client.write('%s/locks/leader' % self.cfg['prefix'], '', append=True, ttl=10).key
         logger.debug('%s : created lock key #%d' % (self.path, int(data.lock[data.lock.rfind('/')+1:])))
         return 'acquire', data, 0.0
 
@@ -91,7 +91,7 @@ class Actor(FSM):
         # - if we're first we own the lock
         #
         logger.debug('%s : attempting to grab lock' % self.path)
-        items = [item for item in self.client.read('/kontrol/%s/locks' % self.cfg['labels']['app'], recursive=True).leaves] 
+        items = [item for item in self.client.read('%s/locks' % self.cfg['prefix'], recursive=True).leaves] 
         ordered = sorted(item.key for item in items)        
         if data.lock == ordered[0]:
             logger.info('%s : now acting as leader' % self.path)
@@ -128,7 +128,7 @@ class Actor(FSM):
             # - silently skip timeouts (worst case scenario)
             #
             tick = time.time()
-            self.client.watch('/kontrol/%s/_dirty' % self.cfg['labels']['app'], timeout=int(self.cfg['fover'] * 0.375))
+            self.client.watch('%s/_dirty' % self.cfg['prefix'], timeout=int(self.cfg['fover'] * 0.375))
             logger.debug('%s : dirty watch triggered' % self.path)
 
         except (etcd.EtcdWatchTimedOut, etcd.EtcdConnectionFailed):
@@ -145,7 +145,7 @@ class Actor(FSM):
         now = time.time()
         hasher = hashlib.md5()
         logger.debug('%s : waited on the trigger for %3.2f s, computing hash...' % (self.path, now - tick))
-        raw = self.client.read('/kontrol/%s/pods' % self.cfg['labels']['app'], recursive=True)
+        raw = self.client.read('%s/pods' % self.cfg['prefix'], recursive=True)
         pods = [json.loads(item.value) for item in raw.leaves if item.value]
         self.snapshot = sorted([pod for pod in pods if 'down' not in pod], key=lambda pod: pod['seq'])
         hasher.update(json.dumps(self.snapshot))
