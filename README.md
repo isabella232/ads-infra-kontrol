@@ -35,10 +35,9 @@ not started and you have to explicitely add it to the supervisor jobs. Anything 
 ### Metrics
 
 This image includes [**telegraf**](https://github.com/influxdata/telegraf) 1.2.1. Its core
-configuration is automatically generated at boot time based on the pod & node labels. Telegraf
-will not run by default unless explicitely started in the derived images. Please note you do
-need to define the *kontrol.unity3d.com/opentsdb* annotation and set it to a valid host for
-the configuration to be generated.
+configuration is automatically generated at boot time based on the pod & node labels. Please
+note you do need to define the *kontrol.unity3d.com/opentsdb* annotation and set it to a valid
+host for the configuration to be generated.
 
 ### Documentation
 

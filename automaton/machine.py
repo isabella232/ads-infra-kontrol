@@ -66,15 +66,24 @@ class Actor(FSM):
 
     tag = 'machine'
 
+    @property
+    def where(self):
+        return '[%s]' % self.cur['tag'].upper()
+
     def __init__(self, args):
         super(Actor, self).__init__()
+
+        #
+        # - set the machine in a artificial idle state able to transition
+        #   anywhere
+        #
+        self.cur = {'tag': 'idle', 'shell': '', 'next': ['*']}
 
         #
         # - if the argument is ending with .py try to import it
         # - the code will be turned into a valid YAML manifest whose states
         #   import & invoke individual functions 
         #
-        self.path = '%s actor' % self.tag
         if args.input.endswith('.py'):
 
             global module
@@ -84,7 +93,7 @@ class Actor(FSM):
             module = path.basename(absolute[:-3])
             __import__(module)
             manifest = api.raw
-            logger.debug('%s : translated %s to YAML' % (self.path, args.input))
+            logger.debug('%s translated %s to YAML' % (self.where, args.input))
 
         else:
 
@@ -112,7 +121,6 @@ class Actor(FSM):
         # - set the current state to 'idle' and let it transition to anything
         #
         self.cfg.args = args
-        self.cur = {'tag': 'idle', 'shell': '', 'next': ['*']}
         self.env = os.environ
         self.fifo = deque()
         self.states = {js['tag']:js for js in self.cfg['states']}
@@ -133,7 +141,7 @@ class Actor(FSM):
         if self.terminate:
             super(Actor, self).reset(data)
 
-        logger.warning('%s : uncaught exception -> %s' % (self.path, data.diagnostic))
+        logger.warning('%s uncaught exception -> %s' % (self.where, data.diagnostic))
         return 'initial', data, 0.0
 
     def initial(self, data):
@@ -165,7 +173,7 @@ class Actor(FSM):
                         # - the transition is valid
                         # - switch the state
                         #
-                        logger.info('%s : %s -> %s' % (self.path, self.cur['tag'], msg.state))
+                        logger.info('%s transitioning to %s' % (self.where, msg.state))
                         self.cur = self.states[msg.state] 
                         if 'shell' in self.cur:
 
@@ -191,7 +199,7 @@ class Actor(FSM):
                             preexec_fn=os.setsid,
                             stderr=STDOUT,
                             stdout=PIPE)
-                            logger.debug('%s : invoking script (pid %s)' % (self.path, data.pid.pid))
+                            logger.debug('%s invoking script (pid %s)' % (self.where, data.pid.pid))
 
                         #
                         # - if we are not blocking send the 'OK' ack immediately
@@ -202,11 +210,11 @@ class Actor(FSM):
 
                         return 'wait_for_completion', data, 0.25
 
-                logger.warning('%s : %s -> %s is not allowed, skipping' % (self.path, self.cur['tag'], msg.state))
+                logger.warning('%s %s -> %s is not allowed, skipping' % (self.where, self.cur['tag'], msg.state))
 
             except Exception as failure:
                 
-                logger.warning('%s : %s' % (self.path, failure))
+                logger.warning('%s %s' % (self.where, failure))
 
             #
             # - we failed to transition for whatever reason
@@ -238,7 +246,7 @@ class Actor(FSM):
             #
             complete = data.pid.poll() is not None
             if not complete and len(self.fifo) > 1 and (now - self.fifo[1].tick) > 1.0:
-                logger.debug('%s : killing pid %s (fifo -> #%d items)' % (self.path, data.pid.pid, len(self.fifo)))
+                logger.debug('%s killing pid %s (fifo -> #%d items)' % (self.where, data.pid.pid, len(self.fifo)))
 
                 #
                 # - use killpg to kill the whole sub-progress group
@@ -251,9 +259,9 @@ class Actor(FSM):
                 lapse = now - data.tick
                 code = data.pid.returncode
                 stdout = [line.rstrip('\n') for line in iter(data.pid.stdout.readline, b'')]
-                logger.debug('%s : script took %2.1f s (pid %s, exit %s)' % (self.path, lapse, data.pid.pid, code if code is not None else '_'))
+                logger.debug('%s pid %s took %2.1f s (exit %s)' % (self.where, data.pid.pid, lapse, code if code is not None else '_'))
                 if stdout:
-                    logger.debug('%s : pid %s -> \n  . %s' % (self.path, data.pid.pid, '\n  . '.join(stdout)))
+                    logger.info('%s \n  . %s' % (self.where, '\n  . '.join(stdout)))
         else:
 
             #

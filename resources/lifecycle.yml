@@ -1,0 +1,20 @@
+#
+# - default lifecycle automaton
+#
+initial: setup
+terminal: shutdown
+states:
+- tag: setup
+  shell: |
+
+    #
+    # - append the statsd telegraf input
+    # - start telegraf
+    #
+    cat << EOT >> /etc/telegraf/telegraf.conf
+    [[inputs.statsd]]
+      service_address = "127.0.0.1:8125"
+    EOT
+    supervisorctl start telegraf
+
+- tag: shutdown

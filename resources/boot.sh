@@ -8,26 +8,25 @@
 NAMESPACE=${NAMESPACE:=default}
 
 #
-# - default $KONTROL_MODE to nothing
+# - default $KONTROL_MODE to slave
 # - attempt to retrieve the pod metadata via the service API
 # - make sure to use the proper namespace
 # - retry with exponential backoff for up to 9 tries until we can fetch the IP
-# - if we find 'debug' in $KONTROL_MODE bypass the API call and default $POD to {}
+# - if we find 'debug' in $KONTROL_MODE bypass the API call
 #
-export KONTROL_MODE=${KONTROL_MODE:=}
-echo $KONTROL_MODE | grep debug
-if [ $? -eq 0 ]; then
-    POD='{}'
-    NODE='{}'
-else
+export KONTROL_MODE=${KONTROL_MODE:=slave}
+echo $KONTROL_MODE | grep debug > /dev/null
+if [ $? -ne 0 ]; then
     N=1
     while true
     do
+        echo "querying API server at $KUBERNETES_SERVICE_HOST"
+
         BEARER_TOKEN_PATH=/var/run/secrets/kubernetes.io/serviceaccount/token
         TOKEN="$(cat $BEARER_TOKEN_PATH)"
         URL=https://$KUBERNETES_SERVICE_HOST/api/v1/namespaces/$NAMESPACE/pods/$HOSTNAME
         POD=$(curl -s -f -m 5 $URL --insecure --header "Authorization: Bearer $TOKEN")
-        IP=$(echo $POD | jq -r '.status.podIP')
+        IP=$(echo $POD | jq -r '.status.podIP | select (.!=null)')
 
         #
         # - we need to treat 2 cases
@@ -37,7 +36,7 @@ else
         #   yet finalized when querying the master
         # - this check/backoff is therefore required
         #
-        if [ -z $IP ] || [ "$IP" = "null" ]; then
+        if [ -z $IP ]; then
             N=$((N+1))
             if [ $N -gt 9 ]; then
                 exit
@@ -56,6 +55,8 @@ else
     #
     # @todo support multiple providers, not just AWS/EC2
     #
+    echo "querying AWS metadata"
+
     LOCAL=$(curl -m 5 http://169.254.169.254/latest/meta-data/local-hostname)
     URL=https://$KUBERNETES_SERVICE_HOST/api/v1/nodes/$LOCAL
     NODE=$(curl -s -f -m 5 $URL --insecure --header "Authorization: Bearer $TOKEN")
@@ -77,18 +78,18 @@ fi
 #
 # @todo how will we implement key isolation and/or authorization ?
 #
-export KONTROL_HOST=${KONTROL_HOST:=$(echo $POD | jq -r '.status.hostIP')}
+export KONTROL_HOST=${KONTROL_HOST:=$(echo $POD | jq -r '.status.hostIP | select (.!=null)')}
 export KONTROL_ETCD=${KONTROL_ETCD:=$KONTROL_HOST}
 export KONTROL_DAMPER=${KONTROL_DAMPER:=10}
 export KONTROL_TTL=${KONTROL_TTL:=25}
 export KONTROL_FOVER=${KONTROL_FOVER:=60}
-export KONTROL_ID=$(echo $POD | jq -r '.metadata.name')
-export KONTROL_IP=$(echo $POD | jq -r '.status.podIP')
-export KONTROL_LABELS=$(echo $POD | jq -r '.metadata.labels')
-export KONTROL_ANNOTATIONS=$(echo $POD | jq -r '.metadata.annotations')
-export KONTROL_NODE_LABELS=$(echo $NODE | jq -r '.metadata.labels')
-export KONTROL_NODE_ANNOTATIONS=$(echo $NODE | jq -r '.metadata.annotations')
-export KONTROL_EIP=$(echo $NODE | jq -r '.status.addresses[] | select(.type=="ExternalIP").address')
+export KONTROL_ID=$(echo $POD | jq -r '.metadata.name | select (.!=null)')
+export KONTROL_IP=$(echo $POD | jq -r '.status.podIP | select (.!=null)')
+export KONTROL_LABELS=$(echo $POD | jq -r '.metadata.labels | select (.!=null)')
+export KONTROL_ANNOTATIONS=$(echo $POD | jq -r '.metadata.annotations | select (.!=null)')
+export KONTROL_NODE_LABELS=$(echo $NODE | jq -r '.metadata.labels | select (.!=null)')
+export KONTROL_NODE_ANNOTATIONS=$(echo $NODE | jq -r '.metadata.annotations | select (.!=null)')
+export KONTROL_EIP=$(echo $NODE | jq -r '.status.addresses[] | select(.type=="ExternalIP").address | select (.!=null)')
 
 #
 # - remove the canned telegraf configuration
@@ -98,15 +99,20 @@ export KONTROL_EIP=$(echo $NODE | jq -r '.status.addresses[] | select(.type=="Ex
 # - if not defined the script below will silently die
 #
 rm -f /etc/telegraf/telegraf.conf
-python - <<-EOF
+OPENTSDB=$(echo $KONTROL_ANNOTATIONS | jq '."kontrol.unity3d.com/opentsdb" | select (.!=null)' | sed -e 's/^"//' -e 's/"$//')
+python - "$OPENTSDB" <<-EOF
 import fnmatch
 import json
 import os
+import sys
 from jinja2 import Template
 
+endpoint = sys.argv[1]
+if not endpoint:
+    print '<kontrol.unity3d.com/opentsdb> not specified, disabling telegraf'
+    sys.exit(0)
+
 labels = {}
-js = json.loads(os.environ['KONTROL_ANNOTATIONS'])
-endpoint = js['kontrol.unity3d.com/opentsdb']
 accepted = ['app', 'role', '*unity3d.com*', '*/hostname']
 def _fetch(var):
     try:
@@ -146,24 +152,8 @@ raw = \
 
 """
 with open('/etc/telegraf/telegraf.conf', 'wb') as fd:
-    fd.write(Template(raw).render(labels=labels, endpoint=endpoint))
+    fd.write(Template(raw).render(labels=labels, endpoint=sys.argv[1]))
 EOF
-
-#
-# - if kontrol is to be started append its supervisor job block
-# - otherwise don't even bother running gunicorn
-#
-echo $KONTROL_MODE | grep -E 'slave|master|debug'
-if [ $? -eq 0 ]; then
-
-    cat << EOF >> /etc/supervisor/supervisord.conf
-[program:kontrol]
-command=/home/kontrol/kontrol.sh
-stopsignal=INT
-stopasgroup=true
-stopwaitsecs=60
-EOF
-fi
 
 #
 # - exec supervisord
