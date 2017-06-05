@@ -1,133 +1,48 @@
+import argparse
+import gevent
 import json
 import logging
-import kontrol
 import os
+import signal
 import sys
 import urllib3
-import signal
+import zerorpc
 
-from flask import Flask, request
+from collections import OrderedDict
+from gevent.queue import Queue
 from logging import DEBUG
 from logging.config import fileConfig
 from kontrol.fsm import MSG, diagnostic, shutdown
-from kontrol.script import Actor as Script
-from kontrol.callback import Actor as Callback
-from kontrol.keepalive import Actor as KeepAlive
-from kontrol.leader import Actor as Leader
-from kontrol.sequence import Actor as Sequence
 from os.path import dirname
 from pykka import ThreadingFuture, Timeout
+from signal import signal, SIGINT, SIGTERM
 
 
-#: our ochopod logger
+#: set of shared actors implementing various state-machines (as a ordered dict)
+actors = OrderedDict()
+
+#: Our automaton logger.
 logger = logging.getLogger('kontrol')
 
-#: our flask endpoint (fronted by gunicorn)
-http = Flask('kontrol')
+#: gevent queue for outgoing RPC requests
+outgoing = Queue()
 
 
-@http.route('/down', methods=['POST'])
-def _down():
-
-    #
-    # - special request terminating all the actors
-    # - this is triggered during shutdown by kontrol.sh
-    #
-    # @todo make sure the request only comes from localhost
-    #
-    try:
-        for key, actor in kontrol.actors.items():
-            logger.debug('terminating actor <%s>' % key)
-            shutdown(actor)
-
-        logger.warning('all actors now terminated, endpoint is idle')
-        return '', 200
-
-    except Exception:
-        return '', 500
-
-
-@http.route('/ping', methods=['PUT'])
-def _ping():
-
-    #
-    # - PUT /ping (e.g keepalive updates from supervised containers)
-    # - post to the sequence actor (please note this of course will only
-    #   work in master mode)
-    #
-    try:
-        js = request.get_json(silent=True, force=True)
-        logger.debug('PUT /ping <- keepalive from %s' % js['ip'])
-        kontrol.actors['sequence'].tell({'request': 'update', 'state': js})
-        return '', 200
-
-    except Exception:
-        return '', 500
-
-@http.route('/state', methods=['GET'])
-def _state():
-
-    #
-    # - GET /state (e.g retrieves the cluster state)
-    # - simply ask the callback actor (this will only work in master mode)
-    #
-    try:
-        logger.debug('GET /state')      
-        return kontrol.actors['callback'].ask({'request': 'state'}), 200
-
-    except Exception:
-        return '', 500
-
-
-@http.route('/script', methods=['PUT'])
-def _script():
-
-    #
-    # - PUT /script (e.g script evaluation request from the controller)
-    # - post it to the script actor (this will only work in slave mode)
-    # - we block on a latch that is released at some point by the
-    #   the actor
-    #
-    try:
-        js = request.get_json(silent=True, force=True)
-
-        msg = MSG({'request': 'invoke'})
-        msg.cmd = js['cmd']
-        msg.env = {'INPUT': json.dumps(js)}
-        msg.latch = ThreadingFuture()     
-
-        #
-        # - block on a latch and reply with whatever the shell script
-        #   wrote to its standard output
-        #
-        logger.debug('PUT /script <- invoking "%s"' % msg.cmd)
-        kontrol.actors['script'].tell(msg)
-        return msg.latch.get(timeout=60), 200
-        
-    except Exception as e:
-        return '', 500
-
-def up():
+class API(object):
 
     """
-    Entry point for the gunicorn worker. This will parse the environment
-    variables and boot all the required actors.
+    RPC front-end API with two requests: ping() and execute(). The startup logic with all
+    the actor setup is done in the ctor.
     """
-    
-    #
-    # - disable the default 3 retries that urllib3 enforces
-    # - that causes the etcd watch to potentially wait 3X
-    #
-    from urllib3.util import Retry
-    urllib3.util.retry.Retry.DEFAULT = Retry(1)
 
-    #
-    # - load our logging configuration from the local log.cfg resource
-    # - make sure to disable any existing logger otherwise urllib3 will flood us
-    #
-    fileConfig('%s/log.cfg' % dirname(__file__), disable_existing_loggers=True)
-    try:
+    def __init__(self):
 
+        #
+        # - disable the default 3 retries that urllib3 enforces
+        # - that causes the etcd watch to potentially wait 3X
+        #
+        from urllib3.util import Retry
+        urllib3.util.retry.Retry.DEFAULT = Retry(1)
         def _try(key):
             value = os.environ[key]
             try:
@@ -174,6 +89,12 @@ def up():
                 'annotations': {'kontrol.unity3d.com/master': '%s' % ip}
             }
             js.update(overrides)
+
+        from kontrol.script import Actor as Script
+        from kontrol.callback import Actor as Callback
+        from kontrol.keepalive import Actor as KeepAlive
+        from kontrol.leader import Actor as Leader
+        from kontrol.sequence import Actor as Sequence
         
         #
         # - slave mode just requires the KeepAlive and Script actors
@@ -215,14 +136,107 @@ def up():
                 actor, tag = stub.start(js), stub.tag
             
             logger.debug('starting actor <%s>' % tag)
-            kontrol.actors[tag] = actor
+            actors[tag] = actor
+
+    def ping(self, raw):
+
+        try:
+            js = json.loads(raw)
+            logger.debug('PUT /ping <- keepalive from %s' % js['ip'])
+            actors['sequence'].tell({'request': 'update', 'state': js})
+            return 'yes'
+
+        except Exception:
+            return None
+
+    def invoke(self, raw):
+
+        try:
+            js = json.loads(raw)
+
+            msg = MSG({'request': 'invoke'})
+            msg.cmd = js['cmd']
+            msg.env = {'INPUT': json.dumps(js)}
+            msg.latch = ThreadingFuture()     
+
+            #
+            # - block on a latch and reply with whatever the shell script
+            #   wrote to its standard output
+            #
+            actors['script'].tell(msg)
+            return msg.latch.get(timeout=60)
+            
+        except Exception as failure:
+            return None
+
+def go():
+
+    """
+    Entry point for the front-facing kontrol script.
+    """
+    parser = argparse.ArgumentParser(description='kontrol', prefix_chars='-')
+    parser.add_argument('-d', '--debug', action='store_true', help='debug logging on')
+    args = parser.parse_args()
+
+    #
+    # - load our logging configuration from the local log.cfg resource
+    # - make sure to disable any existing logger otherwise urllib3 will flood us
+    # - set to DEBUG if required
+    #
+    fileConfig('%s/log.cfg' % dirname(__file__), disable_existing_loggers=True)
+    if args.debug:
+        logger.setLevel(DEBUG)
     
-    except Exception as failure:
+    def _handler(id, _):
 
         #
-        # - bad, probably some missing environment variables
-        # - abort the worker
+        # - shutdown all actors in sequence
+        # - exit
         #
-        why = diagnostic(failure)
-        logger.error('top level failure -> %s' % why)
+        for key, actor in actors.items():
+            logger.debug('terminating actor <%s>' % key)
+            shutdown(actor)
+
+        logger.warning('all actors now terminated, exiting')
+        sys.exit(1)
+
+    signal(SIGINT, _handler)
+    signal(SIGTERM, _handler)
+    try:
+
+        #
+        # - start the RPC server
+        # - bind on TCP 8000
+        # - use a separate greenlet to use the RPC client
+        #
+        assert 'KONTROL_PORT' in os.environ, '$KONTROL_PORT undefined (configuration error ?)'
+        port = int(os.environ['KONTROL_PORT'])
+        server = zerorpc.Server(API())
+        server.bind('tcp://0.0.0.0:%d' % port)
+        def _piper():
+            while 1:
+                try:
+
+                    #
+                    # - @todo: add a timed LRU cache to hold the RPC client
+                    #
+                    host, js = outgoing.get()
+                    client = zerorpc.Client()
+                    client.connect('tcp://%s:%d' % (host, port))
+                    client.ping(js)
+                except Exception :
+                    pass
+
+        #
+        # - start the server and piper as greenlets
+        #
+        threads = [gevent.spawn(func) for func in [server.run, _piper]]
+        gevent.joinall(threads)
+
+    except KeyboardInterrupt:
+        pass
+
+    except Exception as failure:
+        print 'unexpected failure -> %s' % diagnostic(failure)
     
+    sys.exit(0)

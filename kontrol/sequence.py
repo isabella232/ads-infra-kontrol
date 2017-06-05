@@ -1,7 +1,6 @@
 import etcd
 import json
 import logging
-import requests
 import time
 
 from collections import deque

@@ -4,12 +4,11 @@ import json
 import kontrol
 import logging
 import os
-import requests
 import time
 import statsd
 
 from kontrol.fsm import Aborted, FSM, MSG
-
+from kontrol.main import actors
 
 #: our ochopod logger
 logger = logging.getLogger('kontrol')
@@ -165,7 +164,7 @@ class Actor(FSM):
                 msg.cmd = self.cfg['callback']
                 msg.env = {'MD5': md5, 'PODS': json.dumps(self.snapshot)}   
                 msg.ttl = now + int(self.cfg['damper'])
-                kontrol.actors['callback'].tell(msg)
+                actors['callback'].tell(msg)
                 self.statsd.incr('md5_changed,tier=kontrol')
                 logger.debug('%s : MD5 update, requesting callback' % self.path)
 
