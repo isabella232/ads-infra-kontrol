@@ -1,13 +1,13 @@
 import json
 import logging
 import os
-import requests
 import string
 import struct
 import time
 import statsd
 
 from kontrol.fsm import Aborted, FSM, MSG
+from kontrol.main import outgoing
 from math import floor
 from os.path import isfile
 from socket import inet_aton
@@ -41,7 +41,7 @@ class Actor(FSM):
         self.payload = ''
         self.state = 'up'
         self.statsd = statsd.StatsClient('127.0.0.1', 8125)
-        self.url = 'http://%s:8000/ping' % target
+        self.target = target
         
         logger.info('%s : now using key %s (pod %s)' % (self.path, self.key, cfg['id']))
 
@@ -111,10 +111,9 @@ class Actor(FSM):
             # @todo use TLS
             #
             ttl = int(self.cfg['ttl'])
-            resp = requests.put(self.url, data=json.dumps(js, sort_keys=True), headers={'Content-Type':'application/json'}, timeout=1.0)
-            resp.raise_for_status()
+            payload = (self.target, json.dumps(js, sort_keys=True))
+            outgoing.put(payload)
             data.next = now + ttl * 0.75       
-            logger.debug('%s : HTTP %d <- PUT /ping %s' % (self.path, resp.status_code, self.url))     
             self.statsd.incr('keepalive_emitted,tier=kontrol')
 
         if self.terminate:

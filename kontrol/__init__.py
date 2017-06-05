@@ -1,4 +1,1 @@
-from collections import OrderedDict
-
-#: set of shared actors implementing various state-machines (as a ordered dict)
-actors = OrderedDict()
+__version__ = '1.0.0'

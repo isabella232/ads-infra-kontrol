@@ -3,8 +3,9 @@ ENV TELEGRAF_VERSION 1.2.1
 WORKDIR /home/kontrol
 COPY resources ./
 RUN echo 'hosts: files dns' >> /etc/nsswitch.conf && \
-    apk add --no-cache curl iputils jq python2 python2-dev py2-pip socat && \
+    apk add --no-cache curl iputils jq libev libzmq python2 python2-dev py2-pip py2-gevent socat && \
     apk add --no-cache --virtual .transient ca-certificates git gnupg g++ make openssl wget && \
+    pip install --upgrade pip && \
     update-ca-certificates && \
     gpg --keyserver hkp://ha.pool.sks-keyservers.net --recv-keys 05CE15085FC09D18E99EFB22684A14CF2582E0C5 && \
     wget -q https://dl.influxdata.com/telegraf/releases/telegraf-${TELEGRAF_VERSION}-static_linux_amd64.tar.gz.asc && \
@@ -18,8 +19,7 @@ RUN echo 'hosts: files dns' >> /etc/nsswitch.conf && \
     rm -rf *.tar.gz* /usr/src /root/.gnupg && \
     adduser -D kontrol && \
     chown kontrol /home/kontrol && \
-    pip install --upgrade cython eventlet gunicorn pip supervisor && \
-    pip install git+https://github.com/UnityTech/ads-infra-kontrol.git && \
+    pip install supervisor git+https://github.com/UnityTech/ads-infra-kontrol.git@zerorpc && \
     mkdir -p /etc/supervisor && \
     mv *.conf /etc/supervisor && \
     chmod +x *.sh && \

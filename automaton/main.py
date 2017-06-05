@@ -8,9 +8,15 @@ import time
 
 from kontrol.fsm import diagnostic, MSG, shutdown
 from logging import DEBUG
-from os.path import exists
+from logging.config import fileConfig
+from os.path import exists, dirname
 from machine import Actor as Machine
 
+
+#
+# - load our logging configuration file
+#
+fileConfig('%s/log.cfg' % dirname(__file__), disable_existing_loggers=True)
 
 #: Our automaton logger.
 logger = logging.getLogger('automaton')

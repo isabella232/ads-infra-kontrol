@@ -10,17 +10,17 @@ if sys.version_info < (2, 7):
 
 setup(
     name='kontrol',
-    version='0.5.0',
+    version='1.0.0',
     packages=['automaton', 'kontrol'],
     install_requires=
     [
-        'flask>=0.12.0',
+        'jinja2>=2.9.6',
         'jsonschema>=2.6.0',
         'pykka>=1.2.0',
         'python-etcd>=0.4.3',
         'pyyaml>=3.12',
-        'requests>=2.13.0',
-        'statsd>=2.0.0'
+        'statsd>=2.0.0',
+        'zerorpc>=0.6.1'
     ],
     package_data={
         'kontrol':
@@ -36,7 +36,8 @@ setup(
         {
             'console_scripts':
                 [
-                    'automaton = automaton.main:go'
+                    'automaton = automaton.main:go',
+                    'kontrol = kontrol.main:go'
                 ]
         },
 )

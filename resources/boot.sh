@@ -5,7 +5,7 @@
 # - we expect it to be passed as $NAMESPACE in the container definition
 # - if not found revert to 'default'
 #
-NAMESPACE=${NAMESPACE:=default}
+export NAMESPACE=${NAMESPACE:=default}
 
 #
 # - default $KONTROL_MODE to slave
@@ -78,6 +78,7 @@ fi
 #
 # @todo how will we implement key isolation and/or authorization ?
 #
+export KONTROL_PORT=${KONTROL_PORT:=8000}
 export KONTROL_HOST=${KONTROL_HOST:=$(echo $POD | jq -r '.status.hostIP | select (.!=null)')}
 export KONTROL_ETCD=${KONTROL_ETCD:=$KONTROL_HOST}
 export KONTROL_DAMPER=${KONTROL_DAMPER:=10}
