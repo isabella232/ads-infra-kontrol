@@ -6,9 +6,13 @@ This project packages a small [**Python**](https://www.python.org/) REST endpoin
 include to any [**Kubernetes**](https://github.com/GoogleCloudPlatform/kubernetes) pod. It
 relies on [**Etcd**](https://github.com/coreos/etcd) for synchronization, leader election
 and persistence and will allow you to run code whenever a change occurs within the a set
-of monitored pods.
+of monitored pods. Communications are performed using [**ZeroRPC**](http://www.zerorpc.io/)
+over TCP at port 8000 by default.
 
-It also offers the *Automaton* command-line tool to run a finite state machine that
+The image will right now leverage the AWS metadata API to gather node level information
+(this will be extended to include other providers down the road).
+
+It also offers the *automaton* command-line tool to run a finite state machine that
 is controlled via a local unix socket. This machine can be used to script the lifecycle
 of whatever process is managed by *kontrol*.
 
