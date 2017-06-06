@@ -64,7 +64,7 @@
 <h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="overview">
 <h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
-<p><em>Kontrol</em> is a small <a class="reference external" href="https://www.python.org/">Python</a> package which implements a REST/HTTP endpoint plus a set of
+<p><em>Kontrol</em> is a small <a class="reference external" href="https://www.python.org/">Python</a> package which implements a RPC endpoint plus a set of
 <a class="reference external" href="https://github.com/jodal/pykka/">Pykka</a> state-machines. It is used to report periodic keepalive messages from a set of
 pods and aggregate them in <a class="reference external" href="https://github.com/coreos/etcd/">Etcd</a>.</p>
 <div class="figure align-center">
@@ -128,6 +128,7 @@ be able to re-assign existing data to new pods.</p>
 <p>Kontrol is configured via a few environments variables. Those are mostly defaulted based on what
 the <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> pod provides. A few can be specified in the manifest.</p>
 <ul class="simple">
+<li><strong>$KONTROL_PORT</strong>: TCP port to bind to (defaulted)</li>
 <li><strong>$KONTROL_HOST</strong>: IPv4 address for the kube proxy (defaulted).</li>
 <li><strong>$KONTROL_IP</strong>: IPv4 address for the pod (defaulted).</li>
 <li><strong>$KONTROL_ID</strong>: pod identifier (defaulted).</li>
@@ -143,6 +144,8 @@ the <a class="reference external" href="https://github.com/GoogleCloudPlatform/k
 </ul>
 <p>The labels are picked for you from the <a class="reference external" href="https://github.com/GoogleCloudPlatform/kubernetes/">Kubernetes</a> pod metadata. However you <strong>must</strong> at least
 define the <em>app</em> and <em>role</em> labels.</p>
+<p>Please note that if you plan to run pods in a namespace other than <em>default</em> you then <strong>must</strong>
+export <strong>$NAMESPACE</strong> (typically via downward API in the manifest).</p>
 </div>
 <div class="section" id="yaml-manifest">
 <h3>YAML manifest<a class="headerlink" href="#yaml-manifest" title="Permalink to this headline">¶</a></h3>
