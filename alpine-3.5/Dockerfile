@@ -19,7 +19,7 @@ RUN echo 'hosts: files dns' >> /etc/nsswitch.conf && \
     rm -rf *.tar.gz* /usr/src /root/.gnupg && \
     adduser -D kontrol && \
     chown kontrol /home/kontrol && \
-    pip install supervisor git+https://github.com/UnityTech/ads-infra-kontrol.git@zerorpc && \
+    pip install supervisor git+https://github.com/UnityTech/ads-infra-kontrol.git && \
     mkdir -p /etc/supervisor && \
     mv *.conf /etc/supervisor && \
     chmod +x *.sh && \

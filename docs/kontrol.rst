@@ -7,7 +7,7 @@ ____________
 Overview
 ********
 
-*Kontrol* is a small Python_ package which implements a REST/HTTP endpoint plus a set of
+*Kontrol* is a small Python_ package which implements a RPC endpoint plus a set of
 Pykka_ state-machines. It is used to report periodic keepalive messages from a set of
 pods and aggregate them in Etcd_.
 
@@ -88,6 +88,7 @@ Environment variables
 Kontrol is configured via a few environments variables. Those are mostly defaulted based on what
 the Kubernetes_ pod provides. A few can be specified in the manifest.
 
+- **$KONTROL_PORT**: TCP port to bind to (defaulted)
 - **$KONTROL_HOST**: IPv4 address for the kube proxy (defaulted).
 - **$KONTROL_IP**: IPv4 address for the pod (defaulted).
 - **$KONTROL_ID**: pod identifier (defaulted).
@@ -103,6 +104,9 @@ the Kubernetes_ pod provides. A few can be specified in the manifest.
 
 The labels are picked for you from the Kubernetes_ pod metadata. However you **must** at least
 define the *app* and *role* labels.
+
+Please note that if you plan to run pods in a namespace other than *default* you then **must**
+export **$NAMESPACE** (typically via downward API in the manifest).
 
 YAML manifest
 *************
