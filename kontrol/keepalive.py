@@ -112,6 +112,7 @@ class Actor(FSM):
             #
             ttl = int(self.cfg['ttl'])
             payload = (self.target, json.dumps(js, sort_keys=True))
+            logger.debug('%s : ping @ %s' % (self.path, self.target))
             outgoing.put(payload)
             data.next = now + ttl * 0.75       
             self.statsd.incr('keepalive_emitted,tier=kontrol')

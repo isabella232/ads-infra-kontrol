@@ -13,6 +13,7 @@ from gevent.queue import Queue
 from logging import DEBUG
 from logging.config import fileConfig
 from kontrol.fsm import MSG, diagnostic, shutdown
+from kontrol.lru import LRU
 from os.path import dirname
 from pykka import ThreadingFuture, Timeout
 from signal import signal, SIGINT, SIGTERM
@@ -140,20 +141,37 @@ class API(object):
 
     def ping(self, raw):
 
+        """
+        RPC API: keepalive from a slave. This request does not return anything.
+
+        :type raw: str
+        :param raw: serialized json payload
+        :rtype: None
+        """
+
         try:
             js = json.loads(raw)
-            logger.debug('PUT /ping <- keepalive from %s' % js['ip'])
+            logger.debug('RPC ping() <- %s [%s]' % (js['ip'], js['app']))
             actors['sequence'].tell({'request': 'update', 'state': js})
-            return 'yes'
 
         except Exception:
-            return None
+            pass
 
     def invoke(self, raw):
 
+        """
+        RPC API: shell invokation on behalf of the master. The code is run by
+        the script actor and its stdout returned back to the caller.
+
+        :type raw: str
+        :param raw: serialized json payload
+        :rtype: the shell script stdout upon succes, None upon failure
+        """
+
         try:
             js = json.loads(raw)
 
+            logger.debug('RPC invoke() <- %s [%s]' % (js['ip'], js['app']))
             msg = MSG({'request': 'invoke'})
             msg.cmd = js['cmd']
             msg.env = {'INPUT': json.dumps(js)}
@@ -207,25 +225,35 @@ def go():
         #
         # - start the RPC server
         # - bind on TCP 8000
-        # - use a separate greenlet to use the RPC client
+        # - use a separate greenlet to use the RPC client (otherwise you assert
+        #   all over the place)
+        # - the only entity to emit RPC requests from within the kontrol process is
+        #   the keepalive actor
         #
         assert 'KONTROL_PORT' in os.environ, '$KONTROL_PORT undefined (configuration error ?)'
         port = int(os.environ['KONTROL_PORT'])
         server = zerorpc.Server(API())
         server.bind('tcp://0.0.0.0:%d' % port)
         def _piper():
+            lru = LRU(evicted=lambda client: client.close())
             while 1:
+                host, js = outgoing.get()
                 try:
 
                     #
-                    # - @todo: add a timed LRU cache to hold the RPC client
+                    # - use a simple LRU cache with eviction to manage
+                    #   the RPC clients
                     #
-                    host, js = outgoing.get()
-                    client = zerorpc.Client()
-                    client.connect('tcp://%s:%d' % (host, port))
+                    client = lru[host]
+                    if not client:
+                        client = zerorpc.Client()
+                        client.connect('tcp://%s:%d' % (host, port))
+                        lru[host] = client
+                        
                     client.ping(js)
-                except Exception :
-                    pass
+
+                except Exception as failure:
+                    logger.error('RPC : unable to ping() @ %s' % host)
 
         #
         # - start the server and piper as greenlets
