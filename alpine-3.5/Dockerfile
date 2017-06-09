@@ -3,7 +3,7 @@ ENV TELEGRAF_VERSION 1.2.1
 WORKDIR /home/kontrol
 COPY resources ./
 RUN echo 'hosts: files dns' >> /etc/nsswitch.conf && \
-    apk add --no-cache curl iputils jq libev libzmq python2 python2-dev py2-pip py2-gevent socat && \
+    apk add --no-cache bc curl iputils jq libev libzmq python2 python2-dev py2-pip py2-gevent socat && \
     apk add --no-cache --virtual .transient ca-certificates git gnupg g++ make openssl wget && \
     pip install --upgrade pip && \
     update-ca-certificates && \

@@ -171,7 +171,7 @@ class API(object):
         try:
             js = json.loads(raw)
 
-            logger.debug('RPC invoke() <- %s [%s]' % (js['ip'], js['app']))
+            logger.debug('RPC invoke() <- "%s"' % js['cmd'])
             msg = MSG({'request': 'invoke'})
             msg.cmd = js['cmd']
             msg.env = {'INPUT': json.dumps(js)}
