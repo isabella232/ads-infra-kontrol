@@ -47,6 +47,8 @@ properties:
                     type: string
                 shell:
                     type: string
+                force:
+                    type: boolean
                 next:
                     type: array
                     items:
@@ -173,7 +175,7 @@ class Actor(FSM):
                         # - the transition is valid
                         # - switch the state
                         #
-                        logger.info('%s transitioning to %s' % (self.where, msg.state))
+                        logger.info('%s -> %s' % (self.where, msg.state.upper()))
                         self.cur = self.states[msg.state] 
                         if 'shell' in self.cur:
 
@@ -210,11 +212,11 @@ class Actor(FSM):
 
                         return 'wait_for_completion', data, 0.25
 
-                logger.warning('%s %s -> %s is not allowed, skipping' % (self.where, self.cur['tag'], msg.state))
+                logger.debug('%s %s -> %s is not allowed, skipping' % (self.where, self.cur['tag'], msg.state))
 
             except Exception as failure:
                 
-                logger.warning('%s %s' % (self.where, failure))
+                logger.debug('%s unexpected failure -> %s' % (self.where, failure))
 
             #
             # - we failed to transition for whatever reason
@@ -236,6 +238,12 @@ class Actor(FSM):
         if 'shell' in self.cur:
 
             #
+            # - if the force flag is set do not kill the running process if ever
+            #   we have pending messages
+            #
+            force = 'force' in self.cur and self.cur['force']
+
+            #
             # - the process either completed or we have buffered state transitions
             #   in our FIFO
             # - pop the FIFO and cycle back to the initial state
@@ -245,7 +253,7 @@ class Actor(FSM):
             # - display the process standard outputs
             #
             complete = data.pid.poll() is not None
-            if not complete and len(self.fifo) > 1 and (now - self.fifo[1].tick) > 1.0:
+            if not force and not complete and len(self.fifo) > 1 and (now - self.fifo[1].tick) > 1.0:
                 logger.debug('%s killing pid %s (fifo -> #%d items)' % (self.where, data.pid.pid, len(self.fifo)))
 
                 #
@@ -261,7 +269,7 @@ class Actor(FSM):
                 stdout = [line.rstrip('\n') for line in iter(data.pid.stdout.readline, b'')]
                 logger.debug('%s pid %s took %2.1f s (exit %s)' % (self.where, data.pid.pid, lapse, code if code is not None else '_'))
                 if stdout:
-                    logger.info('%s \n  . %s' % (self.where, '\n  . '.join(stdout)))
+                    logger.debug('%s \n  . %s' % (self.where, '\n  . '.join(stdout)))
         else:
 
             #

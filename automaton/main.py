@@ -7,8 +7,9 @@ import sys
 import time
 
 from kontrol.fsm import diagnostic, MSG, shutdown
-from logging import DEBUG
+from logging import DEBUG, Formatter
 from logging.config import fileConfig
+from logging.handlers import RotatingFileHandler
 from os.path import exists, dirname
 from machine import Actor as Machine
 
@@ -31,8 +32,17 @@ def go():
     parser = argparse.ArgumentParser(description='automaton', prefix_chars='-')
     parser.add_argument('input', type=str, help='YAML manifest or python script')
     parser.add_argument('-s', '--socket', type=str, default='/var/run/automaton.sock', help='unix socket path')
+    parser.add_argument('-l', '--logfile', type=str, default='automaton.log', help='logfile')
     parser.add_argument('-d', '--debug', action='store_true', help='debug logging on')
     args = parser.parse_args()
+
+    #
+    # - add a rotating file handler to dump the log into the specified file
+    # - if not specified default to automaton.log
+    #
+    handler = RotatingFileHandler(args.logfile, 'a', 65335, 3)
+    handler.setFormatter(Formatter('[automaton] %(asctime)s [%(levelname)s] %(message)s'))
+    logger.addHandler(handler)
 
     if args.debug:
         logger.setLevel(DEBUG)
