@@ -64,7 +64,7 @@ class API(object):
         assert all(key in js for key in ['id', 'etcd', 'ip', 'labels', 'annotations', 'mode', 'damper', 'ttl', 'fover']), '1+ environment variables missing'
         tokens = set(js['mode'].split(','))
         assert all(key in ['slave', 'master', 'debug', 'verbose'] for key in tokens), 'invalid $KONTROL_MODE value'
-
+ 
         #
         # - if $KONTROL_MODE contains "debug" switch the debug/local mode on
         # - this will force etcd and the local http/rest endpoint to be either
@@ -108,7 +108,6 @@ class API(object):
             masters = js['annotations']['kontrol.unity3d.com/master'].split(',')
             stubs += [(KeepAlive, token) for token in masters] + [Script]
 
-        
         #
         # - master mode requires the Callback, Leader and Sequence actors
         #

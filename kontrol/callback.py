@@ -88,6 +88,7 @@ class Actor(FSM):
         try:
             data.tick = now
             data.pid = Popen(msg.cmd.split(' '),
+            shell=True,
             close_fds=True,
             bufsize=0,
             env=msg.env,

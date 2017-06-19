@@ -22,7 +22,9 @@ class Actor(FSM):
     """
     Actor emitting a periodic HTTP POST request against the controlling party. This enables us
     to report relevant information about the pod. The pod UUID is derived from its IPv4 address
-    and launch time shortened via base 62 encoding.
+    and launch time shortened via base 62 encoding. A random nonce is added to the payload to make
+    sure a pod with a given ip being restarted (or at least the kontrol process) triggers a
+    digest change.
 
     @note the IP retrieved from the K8S API at boot time appears to be missing depending on timing
     """
@@ -36,7 +38,8 @@ class Actor(FSM):
         self.cfg = cfg
         self.data.last = 0
         self.data.next = 0
-        self.key = self._shorten(struct.unpack("!I", inet_aton(cfg['ip']))[0])
+        self.key = '%s' % self._shorten(struct.unpack("!I", inet_aton(cfg['ip']))[0])
+        self.nonce = os.urandom(8).encode('hex')
         self.path = '%s actor (%s)' % (self.tag, target)
         self.payload = ''
         self.state = 'up'
@@ -91,6 +94,7 @@ class Actor(FSM):
                 'id': self.cfg['id'],
                 'ip': self.cfg['ip'],
                 'key': self.key,
+                'nonce': self.nonce,
                 'payload': self.payload,
                 'role': self.cfg['labels']['role']
             }
