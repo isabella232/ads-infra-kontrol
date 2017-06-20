@@ -22,6 +22,9 @@ class Actor(FSM):
     State machine responsible for running the update callback (e.g whenever the observed
     MD5 digest changes). Please note this should only ever be scheduled on one single
     pod at any given time (e.g on the leading pod).
+
+    The subprocess invoked via POpen will be interpreted as a shell script if $KONTROL_SHELL_CALLBACK
+    is defined and set to TRUE.
     """
 
     tag = 'callback'
@@ -33,7 +36,9 @@ class Actor(FSM):
         self.client = etcd.Client(host=cfg['etcd'], port=2379)
         self.fifo = deque()
         self.path = '%s actor' % self.tag
+        self.shell = 'KONTROL_SHELL_CALLBACK' in os.environ and os.environ['KONTROL_SHELL_CALLBACK'] == 'TRUE'
         self.statsd = statsd.StatsClient('127.0.0.1', 8125)
+        
         self.data.left = None
 
     def reset(self, data):
@@ -88,7 +93,7 @@ class Actor(FSM):
         try:
             data.tick = now
             data.pid = Popen(msg.cmd.split(' '),
-            shell=True,
+            shell=self.shell,
             close_fds=True,
             bufsize=0,
             env=msg.env,

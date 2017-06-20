@@ -66,15 +66,14 @@ fi
 # - set the rest of the $KONTROL_* variables
 # - the damper & keepalive TTL are defaulted to 10 and 25 seconds
 # - the fail over ($KONTROL_FOVER) is defaulted to 60 seconds
-# - default $KONTROL_ETCD to the docker host (right now the assumption
-#   is that each etcd2 proxy listens on 0.0.0.0 so that we can reach it
-#   from within the pod)
+# - default $KONTROL_ETCD to the docker host (right now the assumption is that each etcd2
+#   proxy listens on 0.0.0.0 so that we can reach it from within the pod)
 # - $KONTROL_ID is derived from the kubernetes pod name
-# - $KONTROL_IP and $KONTROL_LABELS are derived from the pod metadata
-#   and can't be overriden
+# - $KONTROL_IP and $KONTROL_LABELS are derived from the pod metadata and can't be overriden
 # - $KONTROL_ANNOTATIONS is used to pass custom settings down
-# - the $KONTROL_NODE_* variables hold the same information but for the
-#   underlying host
+# - the $KONTROL_NODE_* variables hold the same information but for the underlying host
+# - $KONTROL_SHELL_CALLBACK is optional and will force the callback to be invoked as a shell
+#   snippet if set to TRUE (do not set it if your callback is not a shell script)
 #
 # @todo how will we implement key isolation and/or authorization ?
 #
@@ -91,6 +90,7 @@ export KONTROL_ANNOTATIONS=$(echo $POD | jq -r '.metadata.annotations | select (
 export KONTROL_NODE_LABELS=$(echo $NODE | jq -r '.metadata.labels | select (.!=null)')
 export KONTROL_NODE_ANNOTATIONS=$(echo $NODE | jq -r '.metadata.annotations | select (.!=null)')
 export KONTROL_EIP=$(echo $NODE | jq -r '.status.addresses[] | select(.type=="ExternalIP").address | select (.!=null)')
+export KONTROL_SHELL_CALLBACK=${KONTROL_SHELL_CALLBACK:=FALSE}
 
 #
 # - remove the canned telegraf configuration
